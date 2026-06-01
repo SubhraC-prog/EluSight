@@ -545,7 +545,7 @@ jobs:
           fi
       
       - name: Send Slack notification (if configured)
-        if: steps.status.outputs.status == 'failure' && secrets.SLACK_WEBHOOK_URL != ''
+        if: steps.status.outputs.status == 'failure' && env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |

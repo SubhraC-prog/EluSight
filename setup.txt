@@ -1,0 +1,77 @@
+# setup.py - Complete installation configuration
+
+from setuptools import setup, find_packages
+
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
+
+setup(
+    name="elusight",
+    version="1.0.0",
+    author="SubhraC-prog",
+    author_email="subhrac@example.com",
+    description="Chromatographic Decision Intelligence Framework",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/SubhraC-prog/EluSight",
+    project_urls={
+        "Documentation": "https://github.com/SubhraC-prog/EluSight/docs",
+        "Source": "https://github.com/SubhraC-prog/EluSight",
+        "Issue Tracker": "https://github.com/SubhraC-prog/EluSight/issues",
+    },
+    packages=find_packages(include=["elusight", "elusight.*"]),
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Science/Research",
+        "Topic :: Scientific/Engineering :: Chemistry",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Operating System :: OS Independent",
+    ],
+    python_requires=">=3.11",
+    install_requires=[
+        "pydantic>=2.0.0",
+        "numpy>=1.24.0",
+        "pandas>=2.0.0",
+        "scipy>=1.10.0",
+        "scikit-learn>=1.3.0",
+        "shap>=0.42.0",
+        "plotly>=5.17.0",
+        "streamlit>=1.25.0",
+        "fastapi>=0.100.0",
+        "uvicorn>=0.23.0",
+    ],
+    extras_require={
+        "dev": [
+            "pytest>=7.4.0",
+            "pytest-cov>=4.1.0",
+            "black>=23.0.0",
+            "ruff>=0.0.280",
+            "mypy>=1.4.0",
+            "pre-commit>=3.3.0",
+        ],
+        "gp": [
+            "gpytorch>=1.9.0",
+            "botorch>=0.8.0",
+            "torch>=2.0.0",
+        ],
+        "all": [
+            "elusight[dev,gp]",
+            "alibi>=0.9.0",
+            "dowhy>=0.11.0",
+            "weasyprint>=60.0",
+            "python-docx>=0.8.11",
+        ],
+    },
+    entry_points={
+        "console_scripts": [
+            "elusight-api=elusight.api.routes:run_api",
+            "elusight-dashboard=elusight.dashboard.app:run_dashboard",
+            "elusight-verify=verify_installation:main",
+        ],
+    },
+    include_package_data=True,
+    zip_safe=False,
+)

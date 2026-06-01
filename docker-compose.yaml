@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: elusight-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    command: elusight-api
+    restart: unless-stopped
+
+  dashboard:
+    build: .
+    container_name: elusight-dashboard
+    ports:
+      - "8501:8501"
+    command: streamlit run elusight/dashboard/app.py --server.port=8501 --server.address=0.0.0.0
+    depends_on:
+      - api
+    restart: unless-stopped

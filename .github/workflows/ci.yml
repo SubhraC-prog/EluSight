@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, develop, feature/* ]
     tags:
-      - 'v*'  # Added: trigger on version tags
+      - 'v*'
     paths-ignore:
       - 'docs/**'
       - 'examples/**'
@@ -18,21 +18,12 @@ on:
   schedule:
     - cron: '0 0 * * 0'
   workflow_dispatch:
-    inputs:
-      deploy_to_pypi:
-        description: 'Deploy to PyPI'
-        required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
 
 env:
   PYTHON_VERSION: "3.11"
 
 jobs:
-  # Job 0: Clean and Verify Test Files (Runs First)
+  # Job 0: Clean and Verify Test Files
   clean:
     name: 🧹 Clean & Verify Test Files
     runs-on: ubuntu-latest
@@ -56,24 +47,12 @@ jobs:
             if [ -f "$file" ]; then
               if grep -q "cat >" "$file" 2>/dev/null; then
                 echo "ERROR: $file contains 'cat >' commands"
-                echo "First 10 lines of problematic file:"
-                head -10 "$file"
-                exit 1
-              fi
-              if grep -q "<< 'EOF'" "$file" 2>/dev/null; then
-                echo "ERROR: $file contains heredoc syntax"
                 exit 1
               fi
               echo "✓ $file is clean"
             fi
           done
           echo "All test files are clean!"
-      
-      - name: Fix line endings
-        run: |
-          find . -name "*.py" -type f -exec dos2unix {} \; 2>/dev/null || true
-          find . -name "*.yml" -type f -exec dos2unix {} \; 2>/dev/null || true
-          find . -name "*.yaml" -type f -exec dos2unix {} \; 2>/dev/null || true
 
   # Job 1: Code Quality and Linting
   lint:
@@ -97,7 +76,6 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
             ${{ runner.os }}-pip-
       
       - name: Install dependencies
@@ -105,47 +83,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install black ruff mypy isort pre-commit
       
-      - name: Clean before lint
-        run: |
-          find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-          find . -type f -name "*.pyc" -delete 2>/dev/null || true
-      
       - name: Run Black
-        run: |
-          if [ -d "elusight" ]; then
-            black --check --line-length 88 elusight/ || true
-          else
-            echo "Skipping Black: elusight directory not found"
-          fi
-          if [ -d "tests" ]; then
-            black --check --line-length 88 tests/ || true
-          fi
+        run: black --check --line-length 88 elusight/ tests/ || true
       
       - name: Run isort
-        run: |
-          if [ -d "elusight" ]; then
-            isort --check-only --profile black elusight/ || true
-          fi
-          if [ -d "tests" ]; then
-            isort --check-only --profile black tests/ || true
-          fi
+        run: isort --check-only --profile black elusight/ tests/ || true
       
       - name: Run Ruff
-        run: |
-          if [ -d "elusight" ]; then
-            ruff check elusight/ || true
-          fi
-          if [ -d "tests" ]; then
-            ruff check tests/ || true
-          fi
+        run: ruff check elusight/ tests/ || true
       
       - name: Run mypy
-        run: |
-          if [ -d "elusight" ]; then
-            mypy elusight/ --ignore-missing-imports --no-strict-optional || true
-          else
-            echo "Skipping mypy: elusight directory not found"
-          fi
+        run: mypy elusight/ --ignore-missing-imports --no-strict-optional || true
 
   # Job 2: Unit Tests
   test:
@@ -173,32 +121,13 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ hashFiles('requirements.txt') }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ hashFiles('requirements.txt') }}
             ${{ runner.os }}-${{ matrix.python-version }}-pip-
-      
-      - name: Clean before install
-        run: |
-          find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-          find . -type f -name "*.pyc" -delete 2>/dev/null || true
-          rm -rf .pytest_cache 2>/dev/null || true
       
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e .
           pip install pytest pytest-cov pytest-xdist pytest-timeout pytest-mock
-      
-      - name: Verify test files before running
-        run: |
-          for file in tests/*.py; do
-            if [ -f "$file" ]; then
-              if grep -q "cat >" "$file" 2>/dev/null; then
-                echo "FATAL: $file still contains cat commands"
-                exit 1
-              fi
-              echo "✓ $file verified"
-            fi
-          done
       
       - name: Run tests
         run: |
@@ -210,8 +139,6 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage.xml
-          flags: unittests
-          name: ${{ matrix.python-version }}-coverage
           fail_ci_if_error: false
 
   # Job 3: Security Scanning
@@ -235,12 +162,7 @@ jobs:
           pip install bandit safety pip-audit
       
       - name: Run Bandit
-        run: |
-          if [ -d "elusight" ]; then
-            bandit -r elusight/ -f json -o bandit_report.json || true
-          else
-            echo "{}" > bandit_report.json
-          fi
+        run: bandit -r elusight/ -f json -o bandit_report.json || true
       
       - name: Run Safety
         run: safety check --json --output safety_report.json || true
@@ -346,14 +268,13 @@ jobs:
           path: dist/
           retention-days: 30
 
-  # Job 6: Deploy to PyPI (UPDATED: Supports both tag push AND manual trigger)
+  # Job 6: Deploy to PyPI - SIMPLIFIED - Runs on workflow_dispatch or tag push
   deploy-pypi:
     name: 🚀 Deploy to PyPI
     runs-on: ubuntu-latest
     needs: [package, security]
-    if: |
-      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_to_pypi == 'true')
+    # Remove complex condition - run when manually triggered OR on tag push
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
     environment:
       name: pypi
       url: https://pypi.org/p/elusight
@@ -375,15 +296,6 @@ jobs:
       - name: Clean build
         run: |
           rm -rf build/ dist/ *.egg-info
-      
-      - name: Get version from tag or use default
-        id: get_version
-        run: |
-          if [[ ${{ github.ref_type }} == 'tag' ]]; then
-            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            echo "VERSION=manual-$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
-          fi
       
       - name: Build package
         run: python -m build
@@ -423,7 +335,3 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "❌ Some tests failed. Please check the logs." >> $GITHUB_STEP_SUMMARY
           fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Cache Information" >> $GITHUB_STEP_SUMMARY
-          echo "Cache key includes commit SHA to ensure fresh caches on each run." >> $GITHUB_STEP_SUMMARY

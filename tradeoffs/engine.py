@@ -1,6 +1,3 @@
-cat > elusight/tradeoffs/engine.py << 'EOF'
-"""Trade-off analysis engine for Pareto front interpretation."""
-
 from dataclasses import dataclass
 from typing import List, Dict, Any, Tuple, Optional
 import numpy as np

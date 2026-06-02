@@ -3,6 +3,7 @@
 import pytest
 import tempfile
 import json
+from pathlib import Path
 
 from schemas.base import MethodResult, MethodVariables, MethodObjectives
 from ingest import Ingestor
@@ -48,10 +49,26 @@ class TestEluSightComplete:
                 'objectives': {'resolution': 2.5, 'runtime': 12.3}
             }, f)
             f.flush()
-            
-            methods = Ingestor.from_json(f.name)
-            assert len(methods) >= 0
+            temp_file = f.name
+        
+        methods = Ingestor.from_json(temp_file)
+        assert len(methods) >= 0
+        Path(temp_file).unlink()
         print("✅ JSON ingestion test passed")
+    
+    def test_ingestor_dataframe(self):
+        """Test DataFrame ingestion."""
+        import pandas as pd
+        df = pd.DataFrame({
+            'method_id': ['TEST_001'],
+            'var_pH': [3.2],
+            'var_gradient_time': [18.0],
+            'obj_resolution': [2.5],
+            'obj_runtime': [12.3]
+        })
+        methods = Ingestor.from_dataframe(df)
+        assert len(methods) >= 0
+        print("✅ DataFrame ingestion test passed")
     
     def test_constraint_engine(self, sample_method, sample_constraints):
         """Test constraint engine."""
@@ -109,6 +126,7 @@ class TestEluSightComplete:
         
         assert len(report.pareto_front_methods) >= 1
         assert len(report.tradeoffs) >= 0
+        assert report.scientific_interpretation is not None
         print("✅ Tradeoff engine test passed")
     
     def test_preference_learning(self):
@@ -123,6 +141,7 @@ class TestEluSightComplete:
         
         assert len(scores) == 2
         assert scores[0].preference_probability >= 0
+        assert scores[0].ranking >= 1
         print("✅ Preference learning test passed")
     
     def test_explainability_engine(self):
@@ -134,35 +153,103 @@ class TestEluSightComplete:
         
         assert len(report.feature_importances) == 3
         assert len(report.top_features) >= 1
+        assert report.scientific_explanation is not None
         print("✅ Explainability engine test passed")
     
-    def test_report_generator(self, sample_method, sample_constraints):
-        """Test report generator."""
-        from trust.engine import TrustEngine, TrustScore
-        from reasoning.engine import ScientificReasoning
-        
+    def test_trust_engine(self, sample_method, sample_constraints):
+        """Test trust engine."""
         constraint_engine = ConstraintEngine(sample_constraints)
         constraint_report = constraint_engine.evaluate(sample_method)
         
-        trust = TrustScore(
-            overall_score=85.0,
-            constraint_score=90.0,
-            robustness_score=85.0,
-            confidence_score=80.0,
-            risk_score=88.0,
-            preference_score=82.0,
-            rationale="Test rationale",
-            recommendation="Recommend",
-            trust_breakdown={}
+        class MockRobustnessReport:
+            overall_robustness_score = 0.95
+            class method_robustness:
+                robustness_score = 0.95
+                pass_probability = 0.97
+                critical_parameters = ['pH']
+        
+        class MockConfidenceReport:
+            overall_confidence_score = 0.92
+            low_confidence_objectives = []
+            high_confidence_objectives = ['resolution']
+        
+        class MockRiskReport:
+            class risk_metrics:
+                overall_risk_score = 0.04
+        
+        engine = TrustEngine()
+        trust = engine.compute_trust(
+            method_id=sample_method.method_id,
+            constraint_report=constraint_report,
+            robustness_report=MockRobustnessReport(),
+            confidence_report=MockConfidenceReport(),
+            risk_report=MockRiskReport(),
+            preference_scores=[]
         )
         
-        reasoning = ScientificReasoning(
-            conclusion="Test conclusion",
-            reasoning_steps=[],
-            uncertainties=[],
-            recommendation="Test recommendation",
-            confidence_score=0.9,
-            key_findings=[]
+        assert 0 <= trust.overall_score <= 100
+        assert trust.recommendation in ["Strongly Recommend", "Recommend", "Consider", "Avoid"]
+        assert trust.rationale is not None
+        print(f"✅ Trust engine test passed - Score: {trust.overall_score:.1f}")
+    
+    def test_reasoning_engine(self, sample_method, sample_constraints):
+        """Test reasoning engine."""
+        constraint_engine = ConstraintEngine(sample_constraints)
+        constraint_report = constraint_engine.evaluate(sample_method)
+        
+        class MockReport:
+            overall_robustness_score = 0.95
+            class method_robustness:
+                robustness_score = 0.95
+                pass_probability = 0.97
+                critical_parameters = ['pH', 'temperature']
+                failure_probability = 0.03
+            
+            class risk_metrics:
+                overall_risk_score = 0.04
+                coelution_probability = 0.02
+                sst_failure_probability = 0.03
+        
+        reasoning_engine = ReasoningEngine()
+        reasoning = reasoning_engine.generate_reasoning(
+            method_id=sample_method.method_id,
+            method_data={
+                'variables': {'pH': 3.2, 'gradient_time': 18.0},
+                'objectives': {'resolution': 2.5}
+            },
+            constraint_report=constraint_report,
+            robustness_report=MockReport(),
+            confidence_report=MockReport(),
+            risk_report=MockReport()
+        )
+        
+        assert reasoning.conclusion is not None
+        assert len(reasoning.reasoning_steps) >= 3
+        assert len(reasoning.key_findings) >= 0
+        assert reasoning.recommendation is not None
+        print(f"✅ Reasoning engine test passed - Confidence: {reasoning.confidence_score:.2f}")
+    
+    def test_report_generator(self, sample_method, sample_constraints):
+        """Test report generator."""
+        constraint_engine = ConstraintEngine(sample_constraints)
+        constraint_report = constraint_engine.evaluate(sample_method)
+        
+        trust = TrustEngine().compute_trust(
+            method_id=sample_method.method_id,
+            constraint_report=constraint_report,
+            robustness_report=type('obj', (), {'overall_robustness_score': 0.95, 'method_robustness': type('obj', (), {'pass_probability': 0.97})})(),
+            confidence_report=type('obj', (), {'overall_confidence_score': 0.92})(),
+            risk_report=type('obj', (), {'risk_metrics': type('obj', (), {'overall_risk_score': 0.05})})(),
+            preference_scores=[]
+        )
+        
+        reasoning = ReasoningEngine().generate_reasoning(
+            method_id=sample_method.method_id,
+            method_data={},
+            constraint_report=constraint_report,
+            robustness_report=None,
+            confidence_report=None,
+            risk_report=None
         )
         
         class MockReport:
@@ -174,16 +261,87 @@ class TestEluSightComplete:
         class MockRiskReport:
             class risk_metrics:
                 overall_risk_score = 0.05
+                coelution_probability = 0.02
+                sst_failure_probability = 0.03
         
         generator = ReportGenerator()
         
         markdown = generator.generate_report(
-            'TEST_001', trust, reasoning, constraint_report,
+            sample_method.method_id, trust, reasoning, constraint_report,
             MockReport(), MockRiskReport(),
             format=ReportFormat.MARKDOWN
         )
-        assert 'TEST_001' in markdown
+        assert 'EluSight' in markdown
+        assert sample_method.method_id in markdown
+        
+        json_report = generator.generate_report(
+            sample_method.method_id, trust, reasoning, constraint_report,
+            MockReport(), MockRiskReport(),
+            format=ReportFormat.JSON
+        )
+        assert 'method_id' in json_report
         print("✅ Report generator test passed")
+    
+    def test_full_pipeline(self, sample_method, sample_constraints):
+        """Test the complete EluSight pipeline."""
+        # 1. Constraint evaluation
+        constraint_engine = ConstraintEngine(sample_constraints)
+        constraint_report = constraint_engine.evaluate(sample_method)
+        
+        # 2. Uncertainty quantification
+        uncertainty_engine = UncertaintyEngine()
+        predictions = sample_method.objectives.model_dump()
+        uncertainty_report = uncertainty_engine.quantify_uncertainty(predictions)
+        
+        # 3. Robustness evaluation
+        robustness_engine = RobustnessEngine()
+        robustness_report = robustness_engine.evaluate_robustness(
+            sample_method.variables.model_dump(), None
+        )
+        
+        # 4. Risk assessment
+        risk_engine = RiskEngine()
+        method_dict = {
+            'objectives': sample_method.objectives.model_dump(),
+            'variables': sample_method.variables.model_dump()
+        }
+        risk_report = risk_engine.assess_risk(method_dict)
+        
+        # 5. Trust scoring
+        trust_engine = TrustEngine()
+        trust = trust_engine.compute_trust(
+            method_id=sample_method.method_id,
+            constraint_report=constraint_report,
+            robustness_report=robustness_report,
+            confidence_report=uncertainty_report,
+            risk_report=risk_report,
+            preference_scores=[]
+        )
+        
+        # 6. Reasoning generation
+        reasoning_engine = ReasoningEngine()
+        reasoning = reasoning_engine.generate_reasoning(
+            method_id=sample_method.method_id,
+            method_data=method_dict,
+            constraint_report=constraint_report,
+            robustness_report=robustness_report,
+            confidence_report=uncertainty_report,
+            risk_report=risk_report
+        )
+        
+        # Assert pipeline works
+        assert trust.overall_score >= 0
+        assert reasoning.conclusion is not None
+        assert constraint_report.overall_pass == True
+        
+        print(f"\n{'='*50}")
+        print("Pipeline Test Results:")
+        print(f"{'='*50}")
+        print(f"  Trust Score: {trust.overall_score:.1f}/100")
+        print(f"  Recommendation: {trust.recommendation}")
+        print(f"  Reasoning: {reasoning.conclusion[:100]}...")
+        print(f"{'='*50}")
+        print("✅ Full pipeline test passed!")
 
 
 def run_complete_tests():

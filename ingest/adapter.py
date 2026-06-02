@@ -1,10 +1,3 @@
-# elusight/ingest/adapter.py
-
-"""
-Data ingestion adapters for various data sources and formats.
-Provides flexible data loading from JSON, CSV, Excel, Parquet, SQL, and APIs.
-"""
-
 import json
 import csv
 import io

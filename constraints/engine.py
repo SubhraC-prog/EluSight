@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 import numpy as np
 
-from elusight.schemas.base import MethodResult, ConstraintType
+from schemas.base import MethodResult, ConstraintType
 
 
 @dataclass

@@ -1,4 +1,3 @@
-# elusight/schemas/base.py
 """Base Pydantic schemas for EluSight."""
 
 from pydantic import BaseModel, Field, ConfigDict
@@ -43,9 +42,9 @@ class ConstraintType(str, Enum):
 
 class MethodVariables(BaseModel):
     """Chromatographic method variables."""
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
     
-    ph: Optional[float] = Field(None, alias="pH")
+    pH: Optional[float] = Field(None, alias="pH")
     gradient_time: Optional[float] = None
     temperature: Optional[float] = None
     flow_rate: Optional[float] = None
@@ -57,13 +56,8 @@ class MethodVariables(BaseModel):
     
     def dict(self, **kwargs) -> Dict[str, Any]:
         """Convert to dictionary, excluding None values."""
-        result = {k: v for k, v in super().dict(**kwargs).items() if v is not None}
-        if 'ph' in result:
-            result['pH'] = result.pop('ph')
-        return result
-    
-    class Config:
-        populate_by_name = True
+        result = super().model_dump(**kwargs)
+        return {k: v for k, v in result.items() if v is not None}
 
 
 class MethodObjectives(BaseModel):
@@ -81,11 +75,14 @@ class MethodObjectives(BaseModel):
     
     def dict(self, **kwargs) -> Dict[str, Any]:
         """Convert to dictionary, excluding None values."""
-        return {k: v for k, v in super().dict(**kwargs).items() if v is not None}
+        result = super().model_dump(**kwargs)
+        return {k: v for k, v in result.items() if v is not None}
 
 
 class UncertaintyMetrics(BaseModel):
     """Uncertainty quantification metrics."""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    
     mean: float
     std: float
     lower_bound: float
@@ -96,7 +93,7 @@ class UncertaintyMetrics(BaseModel):
 
 class MethodResult(BaseModel):
     """Standardized method result from any optimization framework."""
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, json_encoders={datetime: lambda v: v.isoformat()})
     
     method_id: Union[str, int]
     variables: MethodVariables
@@ -109,8 +106,3 @@ class MethodResult(BaseModel):
     platform: Optional[ChromatographicPlatform] = None
     timestamp: datetime = Field(default_factory=datetime.now)
     metadata: Dict[str, Any] = Field(default_factory=dict)
-    
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }

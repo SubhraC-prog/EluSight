@@ -1,6 +1,3 @@
-cat > elusight/dashboard/app.py << 'EOF'
-"""Streamlit dashboard for EluSight."""
-
 import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px

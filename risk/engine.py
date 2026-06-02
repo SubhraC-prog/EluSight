@@ -1,6 +1,3 @@
-cat > elusight/risk/engine.py << 'EOF'
-"""Risk assessment engine for chromatographic methods."""
-
 from dataclasses import dataclass
 from typing import Dict, Any, List, Optional
 import numpy as np

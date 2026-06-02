@@ -2,53 +2,78 @@
 
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Docs](https://img.shields.io/badge/docs-ready-brightgreen.svg)](docs/)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)]()
 
-**EluSight** transforms chromatographic optimization outputs into **scientifically explainable decisions** — answering not just *what works*, but *why it works*.
+**EluSight** converts chromatographic optimization outputs into **explainable, trustworthy, and visual decision intelligence**.
 
----
-
-## 🎯 What Problem Does It Solve?
-
-Traditional optimizers tell you:
-
-> “This is the best method.”
-
-EluSight tells you:
-
-* ✅ Why it is optimal
-* ✅ Whether you should trust it
-* ✅ What risks exist
-* ✅ What tradeoffs were made
-* ✅ What alternatives were rejected
+> Not just *what works* — but **why it works, how reliable it is, and what risks exist**.
 
 ---
 
-## ⚙️ Core Capabilities
+## 🎯 What EluSight Does
 
-| Engine                | Function                     |
-| --------------------- | ---------------------------- |
-| Constraint Engine     | AQbD constraint evaluation   |
-| Uncertainty Engine    | Confidence estimation        |
-| Robustness Engine     | Sensitivity & stability      |
-| Risk Engine           | Failure probability (ICH Q9) |
-| Tradeoff Engine       | Pareto optimization insights |
-| Explainability Engine | Feature importance (SHAP)    |
-| Trust Engine          | Final score (0–100)          |
-| Reasoning Engine      | Scientific explanation       |
+Traditional tools → *“Best method = X”*
+EluSight → *“X is best because…”*
+
+* ✅ Scientific reasoning
+* ✅ Trust score (0–100)
+* ✅ Risk & robustness analysis
+* ✅ Tradeoff insights (Pareto)
+* ✅ Feature importance (SHAP)
+* ✅ Automatic visualizations
+
+---
+
+## 📊 Key Outputs
+
+### 🔹 Trust Score
+
+```json
+{
+  "overall_score": 87.3,
+  "recommendation": "Strongly Recommend"
+}
+```
+
+### 🔹 Scientific Reasoning
+
+* Constraint satisfaction with margins
+* Robustness probability
+* Risk (co-elution, failure)
+* Expert alignment
+
+### 🔹 Visualizations (Auto-generated)
+
+* Correlation heatmap
+* Feature importance
+* SHAP summary
+* Partial dependence
+* Parallel coordinates
+* Radar chart
+
+---
+
+## ⚙️ Core Engines
+
+| Engine                | Purpose              |
+| --------------------- | -------------------- |
+| Constraint Engine     | AQbD evaluation      |
+| Robustness Engine     | Sensitivity analysis |
+| Risk Engine           | Failure probability  |
+| Tradeoff Engine       | Pareto analysis      |
+| Explainability Engine | SHAP insights        |
+| Trust Engine          | Final scoring        |
+| Visualization Engine  | Auto plots           |
 
 ---
 
 ## 🔌 Supported Inputs
 
-Works with any optimizer:
-
 * Bayesian Optimization
 * NSGA-II / Genetic Algorithms
-* Optuna / Scikit-Optimize
-* DryLab
-* AQbD DoE
-* Custom ML pipelines with unlimited numerical & categorical parameters 
+* Optuna / ML pipelines
+* DryLab / AQbD DoE
+* Any CSV / JSON dataset
 
 ---
 
@@ -56,12 +81,6 @@ Works with any optimizer:
 
 ```bash
 pip install elusight
-```
-
-Or:
-
-```bash
-pip install git+https://github.com/SubhraC-prog/EluSight.git
 ```
 
 ---
@@ -72,20 +91,13 @@ pip install git+https://github.com/SubhraC-prog/EluSight.git
 from elusight import Ingestor, TrustEngine
 from elusight.constraints import ConstraintEngine
 
-# Load results
-methods = Ingestor.from_json("results.json")
+methods = Ingestor.from_csv("results.csv")
 
-# Define constraints
 constraints = {
-    "resolution": {"type": "minimum", "value": 2.0, "critical": True},
-    "runtime": {"type": "maximum", "value": 20}
+    "resolution": {"type": "minimum", "value": 2.0}
 }
 
-# Evaluate
-constraint_engine = ConstraintEngine(constraints)
-report = constraint_engine.evaluate(methods[0])
-
-# Compute trust
+report = ConstraintEngine(constraints).evaluate(methods[0])
 trust = TrustEngine().compute_trust(
     method_id=methods[0].method_id,
     constraint_report=report
@@ -96,32 +108,26 @@ print(trust.overall_score)
 
 ---
 
-## 📊 Outputs
+## 📁 Output Structure
 
-### 🔹 Trust Score
-
-* 0–100 reliability score
-* Recommendation + rationale
-
-### 🔹 Scientific Reasoning
-
-* Constraint margins
-* Risk & robustness insights
-* Expert-style explanation
-
-### 🔹 Reports
-
-* Markdown
-* JSON
-* HTML
+```
+elusight_outputs/
+├── correlation_heatmap.png
+├── feature_importance.png
+├── shap_summary.png
+├── parallel_coordinates.png
+├── radar_chart.png
+├── report.md
+├── report.html
+└── report.json
+```
 
 ---
 
 ## 💡 Use Cases
 
 * Pharmaceutical method development (ICH Q14)
-* QC method validation
-* Method transfer between labs
+* QC validation & transfer
 * Regulatory submissions
 * High-throughput screening
 
@@ -135,20 +141,19 @@ pytest tests/ -v
 
 ---
 
-## 📚 Scientific Foundation
+## 📚 Scientific Basis
 
 * ICH Q14 – Method Development
 * ICH Q9 – Risk Management
-* AQbD Principles
-* Multi-objective Optimization
+* AQbD principles
+* Multi-objective optimization
 
 ---
 
 ## 📞 Support
 
 * GitHub: https://github.com/SubhraC-prog/EluSight
-* Issues: Feature requests & bugs
-* Docs: `/docs`
+* Issues: Bug reports & features
 
 ---
 
@@ -158,7 +163,6 @@ MIT License
 
 ---
 
-### 🔬 EluSight Philosophy
+### 🔬 Philosophy
 
-> Scientists don’t just need results —
-> they need **confidence, reasoning, and evidence**.
+> Scientists need **confidence, evidence, and reasoning** — not just results.

@@ -179,4 +179,3 @@ class RiskEngine:
         }
         
         return {risk: strategies.get(risk, ["Review method parameters"]) for risk in high_risks}
-EOF

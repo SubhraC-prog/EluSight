@@ -51,7 +51,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install black ruff mypy isort pre-commit
       
-      -- name: Run Black (code formatting check)
+      - name: Run Black (code formatting check)
         run: |
           if [ -d "elusight" ] && [ -d "tests" ]; then
             black --check --line-length 88 elusight/ tests/

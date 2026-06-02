@@ -164,7 +164,7 @@ jobs:
           pytest tests/benchmarks/ -v --benchmark-only --benchmark-json=benchmark_results.json
       
       - name: Store benchmark results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
           path: benchmark_results.json
@@ -200,7 +200,7 @@ jobs:
         run: pip-audit --requirement requirements.txt --format json --output pip_audit.json || true
       
       - name: Upload security reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-reports
           path: |
@@ -442,7 +442,7 @@ jobs:
           fail_ci_if_error: false
       
       - name: Store coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: htmlcov/
@@ -480,7 +480,7 @@ jobs:
           python -c "from elusight import __version__; print(f'Package version: {__version__}')"
       
       - name: Store package artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist-packages
           path: dist/

@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass
 import numpy as np
 
@@ -11,11 +11,11 @@ class ConstraintResult:
     name: str
     passed: bool
     actual_value: float
-    constraint_value: float
+    constraint_value: Union[float, str]
     constraint_type: ConstraintType
     margin: float
     margin_percentage: float
-    risk_level: str  # 'low', 'medium', 'high'
+    risk_level: str
 
 
 @dataclass
@@ -29,31 +29,15 @@ class ConstraintReport:
     worst_margin: float
     worst_margin_percentage: float
     critical_constraints: List[str]
-    aqbd_design_space_status: str  # 'within', 'edge', 'outside'
+    aqbd_design_space_status: str
 
 
 class ConstraintEngine:
-    """
-    Evaluates chromatographic constraints following AQbD principles.
-    Implements margin analysis and risk-based constraint assessment.
-    """
     
     def __init__(self, constraints: Dict[str, Dict[str, Any]]):
-        """
-        Initialize constraint engine.
-        
-        Args:
-            constraints: Dictionary of constraints in format:
-                {
-                    "resolution": {"type": "minimum", "value": 2.0, "critical": True},
-                    "runtime": {"type": "maximum", "value": 20, "critical": False},
-                    "pressure": {"type": "range", "min": 0, "max": 400}
-                }
-        """
         self.constraints = constraints
     
     def evaluate(self, method: MethodResult) -> ConstraintReport:
-        """Evaluate all constraints for a given method."""
         constraint_results = []
         
         for name, constraint in self.constraints.items():
@@ -72,7 +56,6 @@ class ConstraintEngine:
         margins = [r.margin_percentage for r in constraint_results]
         worst_margin = min(margins) if margins else float('inf')
         
-        # Determine AQbD design space status
         design_space_status = self._determine_design_space_status(
             constraint_results, margins
         )
@@ -90,17 +73,13 @@ class ConstraintEngine:
         )
     
     def _get_objective_value(self, method: MethodResult, name: str) -> Optional[float]:
-        """Extract objective value from method result."""
-        # Try direct attribute
         if hasattr(method.objectives, name):
             return getattr(method.objectives, name)
         
-        # Try dictionary access
         obj_dict = method.objectives.dict()
         if name in obj_dict:
             return obj_dict[name]
         
-        # Try case-insensitive
         for key in obj_dict:
             if key.lower() == name.lower():
                 return obj_dict[key]
@@ -110,7 +89,6 @@ class ConstraintEngine:
     def _evaluate_single_constraint(
         self, name: str, actual: float, constraint: Dict[str, Any]
     ) -> ConstraintResult:
-        """Evaluate a single constraint."""
         constraint_type = ConstraintType(constraint['type'])
         
         if constraint_type == ConstraintType.MINIMUM:
@@ -135,7 +113,7 @@ class ConstraintEngine:
             margin_pct = (margin / ((max_val - min_val) / 2)) * 100 if (max_val - min_val) > 0 else float('inf')
             constraint_value = f"{min_val}-{max_val}"
             
-        else:  # EQUALITY
+        else:
             target = constraint['value']
             tolerance = constraint.get('tolerance', 0.01)
             passed = abs(actual - target) <= tolerance
@@ -143,7 +121,6 @@ class ConstraintEngine:
             margin_pct = (margin / tolerance) * 100 if tolerance > 0 else float('inf')
             constraint_value = target
         
-        # Determine risk level
         if margin_pct >= 20:
             risk_level = 'low'
         elif margin_pct >= 10:
@@ -163,7 +140,6 @@ class ConstraintEngine:
         )
     
     def _is_critical(self, constraint_name: str) -> bool:
-        """Check if a constraint is critical."""
         if constraint_name in self.constraints:
             return self.constraints[constraint_name].get('critical', False)
         return False
@@ -171,14 +147,11 @@ class ConstraintEngine:
     def _determine_design_space_status(
         self, results: List[ConstraintResult], margins: List[float]
     ) -> str:
-        """Determine AQbD design space status."""
         if not results:
             return 'unknown'
         
-        # All constraints passed with >10% margin
         if all(r.passed and r.margin_percentage >= 10 for r in results):
             return 'within'
-        # All constraints passed but some margins <10%
         elif all(r.passed for r in results):
             return 'edge'
         else:

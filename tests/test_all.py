@@ -9,8 +9,8 @@ from elusight import (
     MethodResult, MethodVariables, MethodObjectives,
     Ingestor, TrustEngine, ReasoningEngine
 )
-from elusight.constraints.engine import ConstraintEngine
-from elusight.tradeoffs.engine import TradeoffEngine
+from constraints.engine import ConstraintEngine
+from tradeoffs.engine import TradeoffEngine
 
 
 class TestEluSight:

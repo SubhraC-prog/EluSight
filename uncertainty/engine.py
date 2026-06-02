@@ -120,4 +120,3 @@ class UncertaintyEngine:
                     f"Consider additional experiments to reduce uncertainty in {obj}"
                 )
         return recommendations
-EOF

@@ -1,6 +1,3 @@
-# elusight/constraints/engine.py
-"""Constraint evaluation engine for AQbD-style constraints."""
-
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 import numpy as np

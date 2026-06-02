@@ -129,7 +129,7 @@ elusight-dashboard = "elusight.dashboard.app:run_dashboard"
 elusight-verify = "verify_installation:main"
 
 [tool.setuptools]
-packages = ["elusight", "elusight.schemas", "elusight.ingest", "elusight.constraints", "elusight.uncertainty", "elusight.robustness", "elusight.risk", "elusight.tradeoffs", "elusight.preferences", "elusight.explainability", "elusight.trust", "elusight.reasoning", "elusight.reports", "elusight.dashboard", "elusight.integrations", "elusight.api"]
+packages = ["elusight", "elusight.schemas", "elusight.ingest", "elusight.constraints", "elusight.uncertainty", "elusight.robustness", "elusight.risk", "elusight.tradeoffs", "elusight.preferences"]
 include-package-data = true
 
 [tool.setuptools.packages.find]
@@ -302,7 +302,3 @@ repos = [
 
 [bdist_wheel]
 universal = false
-
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"

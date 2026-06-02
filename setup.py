@@ -15,7 +15,7 @@ from setuptools import setup, find_packages
 # ============================================
 def get_version():
     """Extract version from __init__.py"""
-    version_file = os.path.join(os.path.dirname(__file__), 'elusight', '__init__.py')
+    version_file = os.path.join(os.path.dirname(__file__), '__init__.py')
     with open(version_file, 'r', encoding='utf-8') as f:
         content = f.read()
         version_match = re.search(r"__version__\s*=\s*['\"]([^'\"]+)['\"]", content)

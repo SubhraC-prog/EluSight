@@ -136,4 +136,3 @@ def get_adapter(framework: str) -> OptimizationFrameworkAdapter:
     }
     
     return adapters.get(framework.lower(), GenericOptimizationAdapter())
-EOF

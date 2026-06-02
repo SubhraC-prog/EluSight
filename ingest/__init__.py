@@ -7,7 +7,7 @@ from typing import Union, Dict, Any, List, Optional
 import pandas as pd
 import numpy as np
 
-from elusight.schemas.base import (
+from schemas.base import (
     MethodResult, MethodVariables, MethodObjectives, ChromatographicPlatform
 )
 

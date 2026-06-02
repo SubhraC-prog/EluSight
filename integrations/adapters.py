@@ -1,6 +1,3 @@
-cat > elusight/integrations/adapters.py << 'EOF'
-"""Integrations with external optimization frameworks."""
-
 from typing import Dict, Any, List
 
 

@@ -1,6 +1,3 @@
-cat > elusight/explainability/engine.py << 'EOF'
-"""Explainability engine for chromatographic predictions."""
-
 from dataclasses import dataclass
 from typing import Dict, Any, List, Optional, Callable
 import numpy as np

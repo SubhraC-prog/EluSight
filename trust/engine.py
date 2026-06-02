@@ -1,6 +1,3 @@
-# elusight/trust/engine.py
-"""Trust scoring engine for chromatographic methods."""
-
 from dataclasses import dataclass
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np

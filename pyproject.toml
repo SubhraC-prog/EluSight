@@ -128,8 +128,6 @@ elusight-api = "elusight.api.routes:run_api"
 elusight-dashboard = "elusight.dashboard.app:run_dashboard"
 elusight-verify = "verify_installation:main"
 
-[tool.setuptools]
-packages = ["elusight", "elusight.schemas", "elusight.ingest", "elusight.constraints", "elusight.uncertainty", "elusight.robustness", "elusight.risk", "elusight.tradeoffs", "elusight.preferences"]
 include-package-data = true
 
 [tool.setuptools.packages.find]

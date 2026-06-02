@@ -178,4 +178,3 @@ class ExplainabilityEngine:
             )
         
         return " ".join(explanation_parts)
-EOF

@@ -199,4 +199,3 @@ class ReportGenerator:
 </body>
 </html>"""
         return html
-EOF

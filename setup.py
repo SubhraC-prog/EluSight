@@ -11,16 +11,19 @@ import sys
 from setuptools import setup, find_packages
 
 # ============================================
-# Version extraction
+# Version extraction from root __init__.py
 # ============================================
 def get_version():
-    """Extract version from __init__.py"""
-    version_file = os.path.join(os.path.dirname(__file__), '__init__.py')
-    with open(version_file, 'r', encoding='utf-8') as f:
-        content = f.read()
-        version_match = re.search(r"__version__\s*=\s*['\"]([^'\"]+)['\"]", content)
-        if version_match:
-            return version_match.group(1)
+    """Extract version from root __init__.py"""
+    init_file = os.path.join(os.path.dirname(__file__), '__init__.py')
+    try:
+        with open(init_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+            version_match = re.search(r"__version__\s*=\s*['\"]([^'\"]+)['\"]", content)
+            if version_match:
+                return version_match.group(1)
+    except FileNotFoundError:
+        pass
     return "1.0.0"
 
 # ============================================
@@ -47,16 +50,11 @@ def get_requirements():
         with open(req_file, 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
-                # Skip comments, empty lines, and optional dependencies
                 if line and not line.startswith('#') and not line.startswith('//'):
-                    # Skip optional dependencies (commented out with #)
-                    if not line.startswith('#'):
-                        # Remove any inline comments
-                        line = line.split('#')[0].strip()
-                        if line:
-                            requirements.append(line)
+                    line = line.split('#')[0].strip()
+                    if line:
+                        requirements.append(line)
     except (IOError, OSError):
-        # Fallback requirements
         requirements = [
             'numpy>=1.24.0',
             'pandas>=2.0.0',
@@ -86,8 +84,6 @@ setup(
     # Author information
     author="SubhraC-prog",
     author_email="subhrac@example.com",
-    maintainer="SubhraC-prog",
-    maintainer_email="subhrac@example.com",
     
     # URLs
     url="https://github.com/SubhraC-prog/EluSight",
@@ -95,20 +91,15 @@ setup(
         "Documentation": "https://github.com/SubhraC-prog/EluSight/docs",
         "Source": "https://github.com/SubhraC-prog/EluSight",
         "Issue Tracker": "https://github.com/SubhraC-prog/EluSight/issues",
-        "Changelog": "https://github.com/SubhraC-prog/EluSight/releases",
     },
     
-    # Package configuration
+    # Package configuration - finds all subdirectories at root level
     packages=find_packages(
         where=".",
         exclude=["tests", "tests.*", "docs", "docs.*", "examples", "examples.*"]
     ),
+    package_dir={"": "."},
     include_package_data=True,
-    package_data={
-        'elusight': ['py.typed', '*.pyi'],
-        'elusight.dashboard': ['assets/*', 'static/*'],
-    },
-    zip_safe=False,
     
     # Python version requirement
     python_requires=">=3.11",
@@ -121,54 +112,22 @@ setup(
         'dev': [
             'pytest>=7.4.0',
             'pytest-cov>=4.1.0',
-            'pytest-xdist>=3.3.0',
-            'pytest-timeout>=2.1.0',
-            'pytest-mock>=3.11.0',
-            'pytest-benchmark>=4.0.0',
             'black>=23.0.0',
             'ruff>=0.0.280',
-            'isort>=5.12.0',
             'mypy>=1.4.0',
-            'pre-commit>=3.3.0',
-            'bandit>=1.7.5',
-            'safety>=2.3.0',
         ],
         'gp': [
             'gpytorch>=1.9.0',
             'botorch>=0.8.0',
             'torch>=2.0.0',
         ],
-        'docs': [
-            'sphinx>=7.0.0',
-            'sphinx-rtd-theme>=1.2.0',
-            'myst-parser>=2.0.0',
-            'sphinx-autodoc-typehints>=1.24.0',
-        ],
-        'reports': [
-            'weasyprint>=60.0',
-            'python-docx>=0.8.11',
-            'markdown>=3.4.0',
-            'jinja2>=3.1.0',
-        ],
-        'explainability': [
-            'alibi>=0.9.0',
-            'dowhy>=0.11.0',
-        ],
-        'integrations': [
-            'optuna>=3.3.0',
-            'pymoo>=0.6.1',
-            'scikit-optimize>=0.9.0',
-        ],
-        'all': [
-            'elusight[dev,gp,docs,reports,explainability,integrations]',
-        ],
     },
     
     # Console scripts (entry points)
     entry_points={
         'console_scripts': [
-            'elusight-api=elusight.api.routes:run_api',
-            'elusight-dashboard=elusight.dashboard.app:run_dashboard',
+            'elusight-api=api.routes:run_api',
+            'elusight-dashboard=dashboard.app:run_dashboard',
             'elusight-verify=verify_installation:main',
         ],
     },
@@ -178,36 +137,19 @@ setup(
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Chemistry",
-        "Topic :: Scientific/Engineering :: Artificial Intelligence",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12",
         "Operating System :: OS Independent",
-        "Natural Language :: English",
-        "Typing :: Typed",
     ],
     
-    # Keywords for PyPI search
+    # Keywords
     keywords=[
-        "chromatography",
-        "hplc", "uplc", "gc", "lc-ms",
-        "optimization",
-        "machine-learning",
-        "decision-intelligence",
-        "aqbd",
-        "pareto-front",
-        "bayesian-optimization",
-        "method-development",
-        "analytical-chemistry",
+        "chromatography", "hplc", "optimization", 
+        "machine-learning", "decision-intelligence", "aqbd"
     ],
     
-    # Other metadata
-    platforms=["any"],
     license="MIT",
-    classifiers_extra={
-        "License :: OSI Approved :: MIT License",
-    },
 )
 
 # ============================================
@@ -222,10 +164,12 @@ if __name__ == "__main__":
     print("-" * 60)
     print("Installation complete!")
     print("\nQuick start:")
-    print("  from elusight import Ingestor, TrustEngine")
-    print("  methods = Ingestor.from_json('results.json')")
+    print("  from api.routes import app")
+    print("  from constraints.engine import ConstraintEngine")
+    print("  from trust.engine import TrustEngine")
+    print("  from reasoning.engine import ReasoningEngine")
     print("\nRun dashboard:")
-    print("  streamlit run elusight/dashboard/app.py")
+    print("  streamlit run dashboard/app.py")
     print("\nRun API server:")
-    print("  elusight-api")
+    print("  uvicorn api.routes:app --reload")
     print("=" * 60)

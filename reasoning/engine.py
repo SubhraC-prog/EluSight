@@ -1,6 +1,3 @@
-# elusight/reasoning/engine.py
-"""Scientific reasoning engine - most important module in EluSight."""
-
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np

@@ -1,6 +1,3 @@
-cat > elusight/reports/generator.py << 'EOF'
-"""Report generation module for multiple formats."""
-
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import json

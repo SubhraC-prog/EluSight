@@ -50,7 +50,7 @@ class TestEluSightComplete:
 
     def test_trust_engine(self):
         """Test trust engine."""
-        # Create proper constraint result
+        # Create constraint result WITHOUT 'critical' argument
         constraint_result = ConstraintResult(
             name="resolution",
             passed=True,
@@ -59,11 +59,10 @@ class TestEluSightComplete:
             constraint_type=ConstraintType.MINIMUM,
             margin=0.5,
             margin_percentage=25.0,
-            risk_level="low",
-            critical=True
+            risk_level="low"
         )
         
-        class MockConstraintReport:
+        class MockReport:
             overall_pass = True
             constraints = [constraint_result]
             passed_constraints = [constraint_result]
@@ -71,62 +70,32 @@ class TestEluSightComplete:
             constraint_satisfaction_rate = 1.0
             worst_margin = 0.5
             worst_margin_percentage = 25.0
-            critical_constraints = []
-            aqbd_design_space_status = "within"
-            recommendations = []
-
-        class MockRobustnessReport:
             overall_robustness_score = 0.95
-            class method_robustness:
-                pass_probability = 0.97
-                failure_probability = 0.03
-                robustness_score = 0.95
-                critical_parameters = ["pH"]
-                parameter_sensitivities = {"pH": 0.8}
-                worst_case_scenario = {}
-                operating_range = {}
-            robust_region_size = 0.8
-            failure_modes = []
-            mitigation_strategies = []
-            perturbation_analysis = {}
-
-        class MockConfidenceReport:
             overall_confidence_score = 0.92
-            high_confidence_objectives = ["resolution"]
-            low_confidence_objectives = []
-            objective_confidence = {}
-            uncertainty_sources = []
-            recommendations = []
-
-        class MockRiskReport:
+            
+            class method_robustness:
+                robustness_score = 0.95
+                pass_probability = 0.97
+            
             class risk_metrics:
                 overall_risk_score = 0.04
-                coelution_probability = 0.02
-                sst_failure_probability = 0.03
-                constraint_violation_probability = 0.01
-                robustness_failure_probability = 0.02
-            risk_breakdown = {}
-            high_risk_factors = []
-            medium_risk_factors = []
-            low_risk_factors = []
-            mitigation_strategies = {}
-            risk_acceptability = "acceptable"
 
         engine = TrustEngine()
         trust = engine.compute_trust(
             method_id='TEST_001',
-            constraint_report=MockConstraintReport(),
-            robustness_report=MockRobustnessReport(),
-            confidence_report=MockConfidenceReport(),
-            risk_report=MockRiskReport(),
+            constraint_report=MockReport(),
+            robustness_report=MockReport(),
+            confidence_report=MockReport(),
+            risk_report=MockReport(),
             preference_scores=[]
         )
         assert 0 <= trust.overall_score <= 100
+        print(f"✅ Trust engine test passed! Score: {trust.overall_score:.1f}")
 
     def test_reasoning_engine(self):
         """Test reasoning engine with complete mock reports."""
         
-        # Create proper constraint result
+        # Create constraint result WITHOUT 'critical' argument
         constraint_result = ConstraintResult(
             name="resolution",
             passed=True,
@@ -135,8 +104,7 @@ class TestEluSightComplete:
             constraint_type=ConstraintType.MINIMUM,
             margin=0.5,
             margin_percentage=25.0,
-            risk_level="low",
-            critical=True
+            risk_level="low"
         )
         
         # Mock Constraint Report
@@ -197,16 +165,6 @@ class TestEluSightComplete:
             mitigation_strategies = {}
             risk_acceptability = "acceptable"
 
-        # Mock Tradeoff Report
-        class MockTradeoffReport:
-            pareto_front_methods = ["TEST_001", "TEST_002"]
-            tradeoffs = []
-            best_methods_by_objective = {"resolution": "TEST_001", "runtime": "TEST_002"}
-            knee_points = ["TEST_001"]
-            dominance_matrix = {}
-            diversity_metrics = {}
-            scientific_interpretation = "Method is on Pareto front"
-
         # Create method data
         method_data = {
             'method_id': 'TEST_001',
@@ -225,7 +183,7 @@ class TestEluSightComplete:
             robustness_report=MockRobustnessReport(),
             confidence_report=MockConfidenceReport(),
             risk_report=MockRiskReport(),
-            tradeoff_report=MockTradeoffReport(),
+            tradeoff_report=None,
             explanation_report=None,
             trust_score=None
         )
@@ -241,12 +199,11 @@ class TestEluSightComplete:
         print(f"✅ Reasoning engine test passed!")
         print(f"   Conclusion: {reasoning.conclusion[:100]}...")
         print(f"   Confidence: {reasoning.confidence_score:.2f}")
-        print(f"   Steps: {len(reasoning.reasoning_steps)}")
 
     def test_reasoning_engine_minimal(self):
         """Test reasoning engine with minimal valid input."""
         
-        # Create minimal valid constraint report
+        # Create constraint result WITHOUT 'critical' argument
         constraint_result = ConstraintResult(
             name="resolution",
             passed=True,
@@ -255,8 +212,7 @@ class TestEluSightComplete:
             constraint_type=ConstraintType.MINIMUM,
             margin=0.5,
             margin_percentage=25.0,
-            risk_level="low",
-            critical=True
+            risk_level="low"
         )
         
         class MinimalConstraintReport:

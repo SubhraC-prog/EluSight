@@ -1,6 +1,3 @@
-cat > elusight/preferences/engine.py << 'EOF'
-"""Preference learning module for capturing expert knowledge."""
-
 from dataclasses import dataclass
 from typing import List, Dict, Any, Tuple, Optional
 import numpy as np

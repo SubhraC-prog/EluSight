@@ -1,6 +1,3 @@
-cat > elusight/api/routes.py << 'EOF'
-"""REST API for EluSight."""
-
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional

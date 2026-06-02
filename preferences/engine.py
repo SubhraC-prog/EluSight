@@ -218,4 +218,3 @@ class PreferenceLearningEngine:
             pred.ranking = i + 1
         
         return scores
-EOF

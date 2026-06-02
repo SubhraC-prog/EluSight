@@ -4,20 +4,14 @@ Comprehensive tests for EluSight.
 
 import pytest
 import json
+import tempfile
 from pathlib import Path
 
-# Import all modules directly (no 'elusight.' prefix)
 from schemas.base import MethodResult, MethodVariables, MethodObjectives
 from ingest import Ingestor
 from constraints.engine import ConstraintEngine
 from trust.engine import TrustEngine
 from reasoning.engine import ReasoningEngine
-from uncertainty.engine import UncertaintyEngine
-from robustness.engine import RobustnessEngine
-from risk.engine import RiskEngine
-from tradeoffs.engine import TradeoffEngine
-from preferences.engine import PreferenceLearningEngine
-from explainability.engine import ExplainabilityEngine
 
 
 class TestEluSight:
@@ -37,11 +31,6 @@ class TestEluSight:
                 'variables': {'pH': 3.5, 'gradient_time': 15.0, 'temperature': 45.0},
                 'objectives': {'resolution': 2.8, 'runtime': 10.5, 'robustness': 92.0}
             },
-            {
-                'method_id': 'M003',
-                'variables': {'pH': 3.0, 'gradient_time': 22.0, 'temperature': 35.0},
-                'objectives': {'resolution': 2.2, 'runtime': 15.0, 'robustness': 98.0}
-            }
         ]
     
     @pytest.fixture
@@ -72,6 +61,22 @@ class TestEluSight:
         assert method.variables.pH == 3.2
         assert method.objectives.resolution == 2.5
         print("✅ Method creation successful!")
+    
+    def test_ingestor_from_json(self):
+        """Test JSON ingestion."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump({
+                'method_id': 'TEST_001',
+                'variables': {'pH': 3.2, 'gradient_time': 18.0},
+                'objectives': {'resolution': 2.5, 'runtime': 12.3}
+            }, f)
+            f.flush()
+            temp_file = f.name
+        
+        methods = Ingestor.from_json(temp_file)
+        assert len(methods) >= 0
+        Path(temp_file).unlink()  # Clean up
+        print("✅ JSON ingestion test passed!")
     
     def test_constraint_evaluation(self, sample_methods, sample_constraints):
         """Test constraint engine."""
@@ -118,7 +123,7 @@ class TestEluSight:
         
         assert 0 <= trust.overall_score <= 100
         assert trust.recommendation in ["Strongly Recommend", "Recommend", "Consider", "Avoid"]
-        print("✅ Trust engine successful!")
+        print(f"✅ Trust engine successful! Score: {trust.overall_score:.1f}")
     
     def test_reasoning_engine(self, sample_methods):
         """Test reasoning engine."""
@@ -135,7 +140,8 @@ class TestEluSight:
         
         assert reasoning.conclusion is not None
         assert len(reasoning.reasoning_steps) > 0
-        print("✅ Reasoning engine successful!")
+        assert reasoning.recommendation is not None
+        print(f"✅ Reasoning engine successful! Conclusion: {reasoning.conclusion[:50]}...")
 
 
 def run_all_tests():

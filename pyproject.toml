@@ -124,15 +124,17 @@ Issues = "https://github.com/SubhraC-prog/EluSight/issues"
 Changelog = "https://github.com/SubhraC-prog/EluSight/releases"
 
 [project.scripts]
-elusight-api = "elusight.api.routes:run_api"
-elusight-dashboard = "elusight.dashboard.app:run_dashboard"
+elusight-api = "api.routes:run_api"
+elusight-dashboard = "dashboard.app:run_dashboard"
 elusight-verify = "verify_installation:main"
 
+[tool.setuptools]
+packages = ["api", "constraints", "dashboard", "explainability", "ingest", "integrations", "preferences", "reasoning", "reports", "risk", "robustness", "schemas", "tradeoffs", "trust", "uncertainty"]
 include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["elusight*"]
+include = ["api", "constraints", "dashboard", "explainability", "ingest", "integrations", "preferences", "reasoning", "reports", "risk", "robustness", "schemas", "tradeoffs", "trust", "uncertainty"]
 exclude = ["tests*", "docs*", "examples*"]
 
 [tool.black]
@@ -164,7 +166,7 @@ force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
 skip_gitignore = true
-known_first_party = ["elusight"]
+known_first_party = ["api", "constraints", "dashboard", "explainability", "ingest", "integrations", "preferences", "reasoning", "reports", "risk", "robustness", "schemas", "tradeoffs", "trust", "uncertainty"]
 known_third_party = ["numpy", "pandas", "scipy", "sklearn", "pydantic", "plotly", "streamlit", "fastapi"]
 
 [tool.ruff]
@@ -233,7 +235,7 @@ python_functions = "test_*"
 addopts = [
     "--strict-markers",
     "--tb=short",
-    "--cov=elusight",
+    "--cov=api,constraints,dashboard,explainability,ingest,integrations,preferences,reasoning,reports,risk,robustness,schemas,tradeoffs,trust,uncertainty",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
@@ -252,7 +254,7 @@ timeout = 30
 timeout_method = "thread"
 
 [tool.coverage.run]
-source = ["elusight"]
+source = ["api", "constraints", "dashboard", "explainability", "ingest", "integrations", "preferences", "reasoning", "reports", "risk", "robustness", "schemas", "tradeoffs", "trust", "uncertainty"]
 omit = [
     "*/tests/*",
     "*/__pycache__/*",

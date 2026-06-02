@@ -1,6 +1,3 @@
-cat > elusight/robustness/engine.py << 'EOF'
-"""Robustness evaluation engine for chromatographic methods."""
-
 from dataclasses import dataclass
 from typing import Dict, Any, List, Tuple, Callable, Optional
 import numpy as np

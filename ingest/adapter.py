@@ -15,7 +15,7 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 
-from elusight.schemas.base import MethodResult, MethodVariables, MethodObjectives, ChromatographicPlatform
+from schemas.base import MethodResult, MethodVariables, MethodObjectives, ChromatographicPlatform
 
 
 class DataAdapter:

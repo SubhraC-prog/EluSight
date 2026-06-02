@@ -1,6 +1,3 @@
-cat > elusight/uncertainty/engine.py << 'EOF'
-"""Uncertainty quantification engine for chromatographic predictions."""
-
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 import numpy as np

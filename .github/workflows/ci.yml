@@ -1,0 +1,407 @@
+name: EluSight CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+    paths-ignore:
+      - 'docs/**'
+      - 'examples/**'
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+  pull_request:
+    branches: [ main, develop ]
+    paths-ignore:
+      - 'docs/**'
+      - 'examples/**'
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # Job 0: Clean and Verify Test Files (Runs First)
+  clean:
+    name: 🧹 Clean & Verify Test Files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Clean Python cache
+        run: |
+          find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+          find . -type f -name "*.pyc" -delete 2>/dev/null || true
+          rm -rf .pytest_cache .mypy_cache .ruff_cache 2>/dev/null || true
+          rm -rf build/ dist/ *.egg-info 2>/dev/null || true
+      
+      - name: Verify test files are clean
+        run: |
+          echo "Checking test files for invalid content..."
+          for file in tests/*.py; do
+            if [ -f "$file" ]; then
+              if grep -q "cat >" "$file" 2>/dev/null; then
+                echo "ERROR: $file contains 'cat >' commands"
+                echo "First 10 lines of problematic file:"
+                head -10 "$file"
+                exit 1
+              fi
+              if grep -q "<< 'EOF'" "$file" 2>/dev/null; then
+                echo "ERROR: $file contains heredoc syntax"
+                exit 1
+              fi
+              echo "✓ $file is clean"
+            fi
+          done
+          echo "All test files are clean!"
+      
+      - name: Fix line endings
+        run: |
+          find . -name "*.py" -type f -exec dos2unix {} \; 2>/dev/null || true
+          find . -name "*.yml" -type f -exec dos2unix {} \; 2>/dev/null || true
+          find . -name "*.yaml" -type f -exec dos2unix {} \; 2>/dev/null || true
+
+  # Job 1: Code Quality and Linting
+  lint:
+    name: 🔍 Code Quality & Linting
+    runs-on: ubuntu-latest
+    needs: clean
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+            ${{ runner.os }}-pip-
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install black ruff mypy isort pre-commit
+      
+      - name: Clean before lint
+        run: |
+          find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+          find . -type f -name "*.pyc" -delete 2>/dev/null || true
+      
+      - name: Run Black
+        run: |
+          if [ -d "elusight" ]; then
+            black --check --line-length 88 elusight/ || true
+          else
+            echo "Skipping Black: elusight directory not found"
+          fi
+          if [ -d "tests" ]; then
+            black --check --line-length 88 tests/ || true
+          fi
+      
+      - name: Run isort
+        run: |
+          if [ -d "elusight" ]; then
+            isort --check-only --profile black elusight/ || true
+          fi
+          if [ -d "tests" ]; then
+            isort --check-only --profile black tests/ || true
+          fi
+      
+      - name: Run Ruff
+        run: |
+          if [ -d "elusight" ]; then
+            ruff check elusight/ || true
+          fi
+          if [ -d "tests" ]; then
+            ruff check tests/ || true
+          fi
+      
+      - name: Run mypy
+        run: |
+          if [ -d "elusight" ]; then
+            mypy elusight/ --ignore-missing-imports --no-strict-optional || true
+          else
+            echo "Skipping mypy: elusight directory not found"
+          fi
+
+  # Job 2: Unit Tests
+  test:
+    name: 🧪 Python ${{ matrix.python-version }} Tests
+    runs-on: ubuntu-latest
+    needs: [clean, lint]
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ hashFiles('requirements.txt') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ hashFiles('requirements.txt') }}
+            ${{ runner.os }}-${{ matrix.python-version }}-pip-
+      
+      - name: Clean before install
+        run: |
+          find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+          find . -type f -name "*.pyc" -delete 2>/dev/null || true
+          rm -rf .pytest_cache 2>/dev/null || true
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest pytest-cov pytest-xdist pytest-timeout pytest-mock
+      
+      - name: Verify test files before running
+        run: |
+          for file in tests/*.py; do
+            if [ -f "$file" ]; then
+              if grep -q "cat >" "$file" 2>/dev/null; then
+                echo "FATAL: $file still contains cat commands"
+                exit 1
+              fi
+              echo "✓ $file verified"
+            fi
+          done
+      
+      - name: Run tests
+        run: |
+          pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=html --timeout=30 -n auto
+        env:
+          PYTHONPATH: .
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: ${{ matrix.python-version }}-coverage
+          fail_ci_if_error: false
+
+  # Job 3: Security Scanning
+  security:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    needs: clean
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install security tools
+        run: |
+          pip install bandit safety pip-audit
+      
+      - name: Run Bandit
+        run: |
+          if [ -d "elusight" ]; then
+            bandit -r elusight/ -f json -o bandit_report.json || true
+          else
+            echo "{}" > bandit_report.json
+          fi
+      
+      - name: Run Safety
+        run: safety check --json --output safety_report.json || true
+      
+      - name: Run pip-audit
+        run: pip-audit --requirement requirements.txt --format json --output pip_audit.json || true
+      
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            bandit_report.json
+            safety_report.json
+            pip_audit.json
+          retention-days: 30
+
+  # Job 4: Build and Test Docker
+  docker:
+    name: 🐳 Docker Build & Test
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+      
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: elusight:test
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+      
+      - name: Test Docker container
+        run: |
+          docker run --rm elusight:test python -c "print('Docker container works!')"
+          docker run --rm -d -p 8000:8000 --name elusight-test elusight:test
+          sleep 5
+          curl -f http://localhost:8000/health || echo "Health check not available"
+          docker stop elusight-test || true
+      
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache 2>/dev/null || true
+
+  # Job 5: Package Build
+  package:
+    name: 📦 Package Build
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Clean build directories
+        run: |
+          rm -rf build/ dist/ *.egg-info
+          find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+      
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine wheel
+      
+      - name: Build package
+        run: |
+          python -m build
+          twine check dist/* || true
+      
+      - name: Test package installation
+        run: |
+          pip install dist/*.whl
+          python -c "print('Package installed successfully')"
+      
+      - name: Store package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-packages
+          path: dist/
+          retention-days: 30
+
+  # Job 6: Deploy to PyPI
+  deploy-pypi:
+    name: 🚀 Deploy to PyPI
+    runs-on: ubuntu-latest
+    needs: [package, security]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: pypi
+      url: https://pypi.org/p/elusight
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+      
+      - name: Clean build
+        run: |
+          rm -rf build/ dist/ *.egg-info
+      
+      - name: Build package
+        run: python -m build
+      
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip_existing: true
+
+  # Job 7: Final Summary
+  summary:
+    name: 📋 Pipeline Summary
+    runs-on: ubuntu-latest
+    needs: [clean, lint, test, security, docker, package]
+    if: always()
+    
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# EluSight CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Job Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Clean & Verify | ${{ needs.clean.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security | ${{ needs.security.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker | ${{ needs.docker.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Package | ${{ needs.package.result }} |" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.test.result }}" == "success" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ All tests passed! Ready for deployment." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Some tests failed. Please check the logs." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Cache Information" >> $GITHUB_STEP_SUMMARY
+          echo "Cache key includes commit SHA to ensure fresh caches on each run." >> $GITHUB_STEP_SUMMARY

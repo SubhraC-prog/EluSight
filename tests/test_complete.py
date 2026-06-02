@@ -7,15 +7,15 @@ from pathlib import Path
 import tempfile
 
 from elusight import Ingestor, TrustEngine, ReasoningEngine
-from elusight.schemas.base import MethodResult, MethodVariables, MethodObjectives
-from elusight.constraints.engine import ConstraintEngine
-from elusight.uncertainty.engine import UncertaintyEngine
-from elusight.robustness.engine import RobustnessEngine
-from elusight.risk.engine import RiskEngine
-from elusight.tradeoffs.engine import TradeoffEngine
-from elusight.preferences.engine import PreferenceLearningEngine
-from elusight.explainability.engine import ExplainabilityEngine
-from elusight.reports.generator import ReportGenerator, ReportFormat
+from schemas.base import MethodResult, MethodVariables, MethodObjectives
+from constraints.engine import ConstraintEngine
+from uncertainty.engine import UncertaintyEngine
+from robustness.engine import RobustnessEngine
+from risk.engine import RiskEngine
+from tradeoffs.engine import TradeoffEngine
+from preferences.engine import PreferenceLearningEngine
+from explainability.engine import ExplainabilityEngine
+from reports.generator import ReportGenerator, ReportFormat
 
 
 class TestEluSightComplete:

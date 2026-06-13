@@ -1,3 +1,7 @@
+"""
+Enhanced data ingestion adapter with flexible CSV structure support
+"""
+
 import json
 import csv
 import io
@@ -8,7 +12,12 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 
-from schemas.base import MethodResult, MethodVariables, MethodObjectives, ChromatographicPlatform
+# FIXED: Correct import path for schemas
+try:
+    from elusight.schemas.base import MethodResult, MethodVariables, MethodObjectives, ChromatographicPlatform
+except ImportError:
+    # Fallback for direct execution
+    from schemas.base import MethodResult, MethodVariables, MethodObjectives, ChromatographicPlatform
 
 
 class DataAdapter:
@@ -19,15 +28,7 @@ class DataAdapter:
     
     @staticmethod
     def detect_format(file_path: Union[str, Path]) -> str:
-        """
-        Detect file format based on extension.
-        
-        Args:
-            file_path: Path to the file
-            
-        Returns:
-            Format string: 'json', 'csv', 'excel', 'parquet', 'unknown'
-        """
+        """Detect file format based on extension."""
         ext = Path(file_path).suffix.lower()
         format_map = {
             '.json': 'json',
@@ -47,22 +48,10 @@ class DataAdapter:
         variables_mapping: Optional[Dict[str, str]] = None,
         objectives_mapping: Optional[Dict[str, str]] = None
     ) -> List[MethodResult]:
-        """
-        Load methods from JSON file.
-        
-        Args:
-            file_path: Path to JSON file
-            method_key: Key containing methods list (if nested)
-            variables_mapping: Mapping of variable names
-            objectives_mapping: Mapping of objective names
-            
-        Returns:
-            List of MethodResult objects
-        """
+        """Load methods from JSON file."""
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
-        # Extract methods from nested structure
         if method_key and method_key in data:
             data = data[method_key]
         elif 'methods' in data:
@@ -84,17 +73,7 @@ class DataAdapter:
         variables_mapping: Optional[Dict[str, str]] = None,
         objectives_mapping: Optional[Dict[str, str]] = None
     ) -> List[MethodResult]:
-        """
-        Load methods from JSON string.
-        
-        Args:
-            json_string: JSON string containing method data
-            variables_mapping: Mapping of variable names
-            objectives_mapping: Mapping of objective names
-            
-        Returns:
-            List of MethodResult objects
-        """
+        """Load methods from JSON string."""
         data = json.loads(json_string)
         
         if 'methods' in data:
@@ -118,19 +97,7 @@ class DataAdapter:
         objective_prefix: str = 'obj_',
         **kwargs
     ) -> List[MethodResult]:
-        """
-        Load methods from CSV file.
-        
-        Args:
-            file_path: Path to CSV file
-            method_id_col: Column name for method ID
-            variable_prefix: Prefix for variable columns
-            objective_prefix: Prefix for objective columns
-            **kwargs: Additional arguments to pd.read_csv
-            
-        Returns:
-            List of MethodResult objects
-        """
+        """Load methods from CSV file."""
         df = pd.read_csv(file_path, **kwargs)
         return DataAdapter._parse_dataframe(
             df,
@@ -148,20 +115,7 @@ class DataAdapter:
         objective_prefix: str = 'obj_',
         **kwargs
     ) -> List[MethodResult]:
-        """
-        Load methods from Excel file.
-        
-        Args:
-            file_path: Path to Excel file
-            sheet_name: Sheet name or index
-            method_id_col: Column name for method ID
-            variable_prefix: Prefix for variable columns
-            objective_prefix: Prefix for objective columns
-            **kwargs: Additional arguments to pd.read_excel
-            
-        Returns:
-            List of MethodResult objects
-        """
+        """Load methods from Excel file."""
         df = pd.read_excel(file_path, sheet_name=sheet_name, **kwargs)
         return DataAdapter._parse_dataframe(
             df,
@@ -177,18 +131,7 @@ class DataAdapter:
         variable_prefix: str = 'var_',
         objective_prefix: str = 'obj_'
     ) -> List[MethodResult]:
-        """
-        Load methods from Parquet file.
-        
-        Args:
-            file_path: Path to Parquet file
-            method_id_col: Column name for method ID
-            variable_prefix: Prefix for variable columns
-            objective_prefix: Prefix for objective columns
-            
-        Returns:
-            List of MethodResult objects
-        """
+        """Load methods from Parquet file."""
         df = pd.read_parquet(file_path)
         return DataAdapter._parse_dataframe(
             df,
@@ -204,18 +147,7 @@ class DataAdapter:
         variable_prefix: str = 'var_',
         objective_prefix: str = 'obj_'
     ) -> List[MethodResult]:
-        """
-        Load methods from pandas DataFrame.
-        
-        Args:
-            df: pandas DataFrame
-            method_id_col: Column name for method ID
-            variable_prefix: Prefix for variable columns
-            objective_prefix: Prefix for objective columns
-            
-        Returns:
-            List of MethodResult objects
-        """
+        """Load methods from pandas DataFrame."""
         return DataAdapter._parse_dataframe(
             df,
             method_id_col=method_id_col,
@@ -231,19 +163,7 @@ class DataAdapter:
         variable_prefix: str = 'var_',
         objective_prefix: str = 'obj_'
     ) -> List[MethodResult]:
-        """
-        Load methods from SQL database.
-        
-        Args:
-            connection_string: SQLAlchemy connection string
-            query: SQL query to execute
-            method_id_col: Column name for method ID
-            variable_prefix: Prefix for variable columns
-            objective_prefix: Prefix for objective columns
-            
-        Returns:
-            List of MethodResult objects
-        """
+        """Load methods from SQL database."""
         import sqlalchemy as sa
         engine = sa.create_engine(connection_string)
         df = pd.read_sql(query, engine)
@@ -262,19 +182,7 @@ class DataAdapter:
         method_key: Optional[str] = None,
         timeout: int = 30
     ) -> List[MethodResult]:
-        """
-        Load methods from REST API endpoint.
-        
-        Args:
-            endpoint: API endpoint URL
-            params: Query parameters
-            headers: Request headers
-            method_key: Key containing methods in response
-            timeout: Request timeout in seconds
-            
-        Returns:
-            List of MethodResult objects
-        """
+        """Load methods from REST API endpoint."""
         import requests
         
         response = requests.get(
@@ -303,17 +211,7 @@ class DataAdapter:
         variables_mapping: Optional[Dict[str, str]] = None,
         objectives_mapping: Optional[Dict[str, str]] = None
     ) -> List[MethodResult]:
-        """
-        Load methods from pickle file.
-        
-        Args:
-            file_path: Path to pickle file
-            variables_mapping: Mapping of variable names
-            objectives_mapping: Mapping of objective names
-            
-        Returns:
-            List of MethodResult objects
-        """
+        """Load methods from pickle file."""
         import pickle
         import gzip
         
@@ -347,18 +245,7 @@ class DataAdapter:
         recursive: bool = False,
         **kwargs
     ) -> Iterator[MethodResult]:
-        """
-        Iterate through files in directory and yield methods.
-        
-        Args:
-            directory: Directory path
-            pattern: File pattern to match
-            recursive: Search recursively
-            **kwargs: Additional arguments for specific loaders
-            
-        Yields:
-            MethodResult objects
-        """
+        """Iterate through files in directory and yield methods."""
         directory = Path(directory)
         if not directory.exists():
             raise FileNotFoundError(f"Directory not found: {directory}")
@@ -393,60 +280,52 @@ class DataAdapter:
         variables_mapping: Optional[Dict[str, str]] = None,
         objectives_mapping: Optional[Dict[str, str]] = None
     ) -> List[MethodResult]:
-        """
-        Parse raw method dictionaries into MethodResult objects.
-        
-        Args:
-            data: List of method dictionaries
-            variables_mapping: Mapping for variable names
-            objectives_mapping: Mapping for objective names
-            
-        Returns:
-            List of MethodResult objects
-        """
+        """Parse raw method dictionaries into MethodResult objects."""
         results = []
         
         for item in data:
-            # Extract variables
             variables_raw = item.get('variables', {})
             if not variables_raw:
-                # Try to extract from top-level keys with variable mapping
                 variables_raw = {}
                 for key, value in item.items():
-                    if key not in ['method_id', 'id', 'objectives', 'constraints', 'metadata']:
+                    if key not in ['method_id', 'id', 'objectives', 'constraints', 'metadata', 'uncertainties']:
                         if variables_mapping and key in variables_mapping:
                             key = variables_mapping[key]
-                        variables_raw[key] = value
+                        # Only add numeric or string values
+                        if isinstance(value, (int, float, str)):
+                            variables_raw[key] = value
             
-            # Apply variable mapping
             if variables_mapping:
                 variables_raw = {
                     variables_mapping.get(k, k): v 
                     for k, v in variables_raw.items()
                 }
             
-            # Handle pH/pH naming
+            # Handle pH naming
             if 'ph' in variables_raw and 'pH' not in variables_raw:
                 variables_raw['pH'] = variables_raw.pop('ph')
             
+            # Filter only valid fields for MethodVariables
+            valid_var_fields = set(MethodVariables.model_fields.keys())
             variables = MethodVariables(**{
                 k: v for k, v in variables_raw.items()
-                if k in MethodVariables.model_fields
+                if k in valid_var_fields and v is not None
             })
             
             # Extract objectives
             objectives_raw = item.get('objectives', {})
             
-            # Apply objective mapping
             if objectives_mapping:
                 objectives_raw = {
                     objectives_mapping.get(k, k): v 
                     for k, v in objectives_raw.items()
                 }
             
+            # Filter only valid fields for MethodObjectives
+            valid_obj_fields = set(MethodObjectives.model_fields.keys())
             objectives = MethodObjectives(**{
                 k: v for k, v in objectives_raw.items()
-                if k in MethodObjectives.model_fields
+                if k in valid_obj_fields and v is not None
             })
             
             # Parse platform
@@ -457,20 +336,21 @@ class DataAdapter:
                 except ValueError:
                     pass
             
-            # Create MethodResult
-            result = MethodResult(
-                method_id=item.get('method_id', item.get('id', f"method_{len(results)}")),
-                variables=variables,
-                objectives=objectives,
-                constraints=item.get('constraints'),
-                uncertainties=item.get('uncertainties'),
-                pareto_rank=item.get('pareto_rank'),
-                dominance_count=item.get('dominance_count'),
-                source_framework=item.get('source_framework', item.get('optimizer')),
-                platform=platform,
-                metadata=item.get('metadata', {})
-            )
-            results.append(result)
+            # Create MethodResult (skip if no objectives)
+            if objectives and any(v is not None for v in objectives.dict().values()):
+                result = MethodResult(
+                    method_id=item.get('method_id', item.get('id', f"method_{len(results)}")),
+                    variables=variables,
+                    objectives=objectives,
+                    constraints=item.get('constraints'),
+                    uncertainties=item.get('uncertainties'),
+                    pareto_rank=item.get('pareto_rank'),
+                    dominance_count=item.get('dominance_count'),
+                    source_framework=item.get('source_framework', item.get('optimizer')),
+                    platform=platform,
+                    metadata=item.get('metadata', {})
+                )
+                results.append(result)
         
         return results
     
@@ -481,108 +361,109 @@ class DataAdapter:
         variable_prefix: str = 'var_',
         objective_prefix: str = 'obj_'
     ) -> List[MethodResult]:
-        """
-        Parse DataFrame into MethodResult objects.
-        
-        Args:
-            df: pandas DataFrame
-            method_id_col: Column name for method ID
-            variable_prefix: Prefix for variable columns
-            objective_prefix: Prefix for objective columns
-            
-        Returns:
-            List of MethodResult objects
-        """
+        """Parse DataFrame into MethodResult objects."""
         results = []
+        
+        # Handle NaN values
+        df = df.replace({np.nan: None, pd.NA: None})
         
         # Determine method ID column
         if method_id_col is None:
-            if 'method_id' in df.columns:
-                method_id_col = 'method_id'
-            elif 'id' in df.columns:
-                method_id_col = 'id'
-            else:
-                method_id_col = None
+            for col in ['method_id', 'id', 'Method_ID', 'ID', 'run_id']:
+                if col in df.columns:
+                    method_id_col = col
+                    break
+        
+        # Determine if using prefix or direct mapping
+        has_prefix_columns = any(
+            col.lower().startswith(variable_prefix.lower()) or 
+            col.lower().startswith(objective_prefix.lower()) 
+            for col in df.columns
+        )
         
         for idx, row in df.iterrows():
             variables = {}
             objectives = {}
             
-            for col, value in row.items():
-                if pd.isna(value):
+            for col in df.columns:
+                value = row[col]
+                if value is None or pd.isna(value):
                     continue
                 
                 col_lower = col.lower()
                 
-                # Check for variable columns
-                if col_lower.startswith(variable_prefix.lower()):
-                    var_name = col[len(variable_prefix):]
-                    if var_name.lower() == 'ph':
-                        var_name = 'pH'
-                    variables[var_name] = float(value) if isinstance(value, (int, float)) else value
+                if has_prefix_columns:
+                    # Prefix-based detection
+                    if col_lower.startswith(variable_prefix.lower()):
+                        var_name = col[len(variable_prefix):]
+                        if var_name.lower() == 'ph':
+                            var_name = 'pH'
+                        try:
+                            variables[var_name] = float(value) if isinstance(value, (int, float)) else value
+                        except (ValueError, TypeError):
+                            variables[var_name] = value
+                    
+                    elif col_lower.startswith(objective_prefix.lower()):
+                        obj_name = col[len(objective_prefix):]
+                        try:
+                            objectives[obj_name] = float(value) if isinstance(value, (int, float)) else value
+                        except (ValueError, TypeError):
+                            objectives[obj_name] = value
                 
-                # Check for objective columns
-                elif col_lower.startswith(objective_prefix.lower()):
-                    obj_name = col[len(objective_prefix):]
-                    objectives[obj_name] = float(value) if isinstance(value, (int, float)) else value
-                
-                # Direct column mapping without prefix (if no prefix columns exist)
-                elif not variables and not objectives:
-                    # Assume all numeric columns are variables/objectives
-                    if isinstance(value, (int, float)):
-                        if col_lower in ['resolution', 'runtime', 'robustness']:
+                else:
+                    # Keyword-based detection
+                    objective_keywords = [
+                        'resolution', 'res', 'runtime', 'run_time', 'time', 'rt',
+                        'robustness', 'robust', 'tailing', 'tail', 'asymmetry',
+                        'peak', 'area', 'plate', 'efficiency', 'capacity',
+                        'selectivity', 'retention', 'symmetry', 'signal', 'noise', 'snr'
+                    ]
+                    
+                    if col == method_id_col:
+                        continue
+                    elif any(keyword in col_lower for keyword in objective_keywords):
+                        try:
+                            objectives[col] = float(value) if isinstance(value, (int, float)) else value
+                        except (ValueError, TypeError):
                             objectives[col] = value
-                        else:
+                    else:
+                        # Assume it's a variable
+                        if isinstance(value, (int, float)):
+                            variables[col] = value
+                        elif isinstance(value, str):
                             variables[col] = value
             
             # Determine method ID
-            if method_id_col and method_id_col in row:
+            if method_id_col and method_id_col in row and row[method_id_col] is not None:
                 method_id = str(row[method_id_col])
             else:
-                method_id = f"method_{idx}"
+                method_id = f"Method_{idx+1:04d}"
             
-            # Extract platform from metadata if available
-            platform = None
-            if 'platform' in row and not pd.isna(row['platform']):
+            # Create MethodResult (skip if no valid objectives)
+            if objectives:
                 try:
-                    platform = ChromatographicPlatform(str(row['platform']).lower())
-                except ValueError:
-                    pass
-            
-            result = MethodResult(
-                method_id=method_id,
-                variables=MethodVariables(**variables),
-                objectives=MethodObjectives(**objectives),
-                source_framework=row.get('source_framework') if 'source_framework' in row else None,
-                platform=platform,
-                metadata={'row_index': idx}
-            )
-            results.append(result)
+                    result = MethodResult(
+                        method_id=method_id,
+                        variables=MethodVariables(**variables),
+                        objectives=MethodObjectives(**objectives)
+                    )
+                    results.append(result)
+                except Exception as e:
+                    print(f"Warning: Could not create method {method_id}: {e}")
+                    continue
         
         return results
 
 
 class StreamingAdapter:
-    """
-    Adapter for streaming large datasets.
-    Handles incremental loading of methods from large files.
-    """
+    """Adapter for streaming large datasets."""
     
     @staticmethod
     def stream_json(
         file_path: Union[str, Path],
         chunk_size: int = 1000
     ) -> Iterator[List[MethodResult]]:
-        """
-        Stream JSON file in chunks for large datasets.
-        
-        Args:
-            file_path: Path to JSON file
-            chunk_size: Number of methods per chunk
-            
-        Yields:
-            Chunks of MethodResult objects
-        """
+        """Stream JSON file in chunks."""
         import ijson
         
         chunk = []
@@ -608,17 +489,7 @@ class StreamingAdapter:
         chunk_size: int = 1000,
         **kwargs
     ) -> Iterator[List[MethodResult]]:
-        """
-        Stream CSV file in chunks.
-        
-        Args:
-            file_path: Path to CSV file
-            chunk_size: Number of rows per chunk
-            **kwargs: Additional arguments to pd.read_csv
-            
-        Yields:
-            Chunks of MethodResult objects
-        """
+        """Stream CSV file in chunks."""
         for chunk_df in pd.read_csv(file_path, chunksize=chunk_size, **kwargs):
             methods = DataAdapter._parse_dataframe(chunk_df)
             if methods:
@@ -626,10 +497,7 @@ class StreamingAdapter:
 
 
 class OptimizerOutputAdapter:
-    """
-    Adapter for specific optimizer output formats.
-    Converts optimizer-specific outputs to MethodResult objects.
-    """
+    """Adapter for specific optimizer output formats."""
     
     @staticmethod
     def from_botorch(
@@ -637,20 +505,9 @@ class OptimizerOutputAdapter:
         parameter_names: List[str],
         objective_names: List[str]
     ) -> List[MethodResult]:
-        """
-        Convert BoTorch optimization output.
-        
-        Args:
-            experiment_data: BoTorch experiment data
-            parameter_names: Names of parameters/variables
-            objective_names: Names of objectives
-            
-        Returns:
-            List of MethodResult objects
-        """
+        """Convert BoTorch optimization output."""
         methods = []
         
-        # Extract candidates and observations
         candidates = experiment_data.get('candidates', [])
         observations = experiment_data.get('observations', [])
         
@@ -681,16 +538,7 @@ class OptimizerOutputAdapter:
         study_data: Dict[str, Any],
         variable_names: Optional[List[str]] = None
     ) -> List[MethodResult]:
-        """
-        Convert Optuna optimization output.
-        
-        Args:
-            study_data: Optuna study data
-            variable_names: Names of variables (auto-detected if None)
-            
-        Returns:
-            List of MethodResult objects
-        """
+        """Convert Optuna optimization output."""
         methods = []
         
         trials = study_data.get('trials', [])
@@ -698,7 +546,6 @@ class OptimizerOutputAdapter:
         for i, trial in enumerate(trials):
             params = trial.get('params', {})
             
-            # Auto-detect variable names if not provided
             if variable_names is None:
                 variable_names = list(params.keys())
             
@@ -732,17 +579,7 @@ class OptimizerOutputAdapter:
         variable_names: List[str],
         objective_names: List[str]
     ) -> List[MethodResult]:
-        """
-        Convert pymoo optimization output.
-        
-        Args:
-            result_data: pymoo result data
-            variable_names: Names of variables
-            objective_names: Names of objectives
-            
-        Returns:
-            List of MethodResult objects
-        """
+        """Convert pymoo optimization output."""
         methods = []
         
         X = result_data.get('X', [])
@@ -775,24 +612,14 @@ class OptimizerOutputAdapter:
     def from_drylab(
         export_data: Dict[str, Any]
     ) -> List[MethodResult]:
-        """
-        Convert DryLab export output.
-        
-        Args:
-            export_data: DryLab export dictionary
-            
-        Returns:
-            List of MethodResult objects
-        """
+        """Convert DryLab export output."""
         methods = []
         
-        # DryLab typical structure
         methods_data = export_data.get('methods', export_data.get('scouting_runs', []))
         
         for i, method_data in enumerate(methods_data):
             variables = {}
             
-            # Extract common DryLab parameters
             if 'pH' in method_data:
                 variables['pH'] = method_data['pH']
             if 'gradient_time' in method_data:
@@ -808,58 +635,46 @@ class OptimizerOutputAdapter:
             if 'runtime' in method_data:
                 objectives['runtime'] = method_data['runtime']
             
-            method = MethodResult(
-                method_id=method_data.get('name', f"drylab_{i}"),
-                variables=MethodVariables(**variables),
-                objectives=MethodObjectives(**objectives),
-                source_framework="drylab"
-            )
-            methods.append(method)
+            if objectives:
+                method = MethodResult(
+                    method_id=method_data.get('name', f"drylab_{i}"),
+                    variables=MethodVariables(**variables),
+                    objectives=MethodObjectives(**objectives),
+                    source_framework="drylab"
+                )
+                methods.append(method)
         
         return methods
 
 
 class BatchAdapter:
-    """
-    Adapter for batch processing of multiple data sources.
-    """
+    """Adapter for batch processing of multiple data sources."""
     
     def __init__(self):
         self.sources = []
         self.results = []
     
     def add_json(self, file_path: Union[str, Path], **kwargs):
-        """Add JSON source to batch."""
         self.sources.append(('json', file_path, kwargs))
         return self
     
     def add_csv(self, file_path: Union[str, Path], **kwargs):
-        """Add CSV source to batch."""
         self.sources.append(('csv', file_path, kwargs))
         return self
     
     def add_excel(self, file_path: Union[str, Path], **kwargs):
-        """Add Excel source to batch."""
         self.sources.append(('excel', file_path, kwargs))
         return self
     
     def add_parquet(self, file_path: Union[str, Path], **kwargs):
-        """Add Parquet source to batch."""
         self.sources.append(('parquet', file_path, kwargs))
         return self
     
     def add_dataframe(self, df: pd.DataFrame, **kwargs):
-        """Add DataFrame source to batch."""
         self.sources.append(('dataframe', df, kwargs))
         return self
     
     def process(self) -> List[MethodResult]:
-        """
-        Process all added sources and return combined results.
-        
-        Returns:
-            Combined list of MethodResult objects
-        """
         all_methods = []
         
         for source_type, source_data, kwargs in self.sources:
@@ -882,12 +697,6 @@ class BatchAdapter:
         return all_methods
     
     def get_summary(self) -> Dict[str, Any]:
-        """
-        Get summary of batch processing.
-        
-        Returns:
-            Summary dictionary
-        """
         return {
             'total_sources': len(self.sources),
             'total_methods': len(self.results),

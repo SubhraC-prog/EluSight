@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
+import warnings
+
+warnings.filterwarnings('ignore', category=RuntimeWarning)
 
 
 @dataclass
@@ -13,11 +16,11 @@ class TrustScore:
     constraint_score: float
     robustness_score: float
     confidence_score: float
-    risk_score: float  # Inverted: higher means lower risk
+    risk_score: float
     preference_score: float
     rationale: str
     confidence_interval: Tuple[float, float]
-    recommendation: str  # "Strongly Recommend", "Recommend", "Consider", "Avoid"
+    recommendation: str
     trust_breakdown: Dict[str, float]
 
 
@@ -53,7 +56,8 @@ class TrustEngine:
         
         # Normalize weights to sum to 1
         total = sum(self.weights.values())
-        self.weights = {k: v/total for k, v in self.weights.items()}
+        if total > 0:
+            self.weights = {k: v/total for k, v in self.weights.items()}
     
     def compute_trust(
         self,
@@ -66,12 +70,27 @@ class TrustEngine:
     ) -> TrustScore:
         """Compute comprehensive trust score for a method."""
         
-        # Extract individual scores (convert to 0-100 scale)
-        constraint_score = self._extract_constraint_score(constraint_report) * 100
-        robustness_score = self._extract_robustness_score(robustness_report) * 100
-        confidence_score = self._extract_confidence_score(confidence_report) * 100
-        risk_score = (1 - self._extract_risk_score(risk_report)) * 100
+        # Extract individual scores with NaN protection
+        constraint_score = self._safe_extract(constraint_report, '_extract_constraint_score', 0.5) * 100
+        robustness_score = self._safe_extract(robustness_report, '_extract_robustness_score', 0.5) * 100
+        confidence_score = self._safe_extract(confidence_report, '_extract_confidence_score', 0.5) * 100
+        risk_raw = self._safe_extract(risk_report, '_extract_risk_score', 0.5)
+        risk_score = (1 - risk_raw) * 100
         preference_score = self._extract_preference_score(preference_scores) * 100
+        
+        # Handle NaN values - replace with default
+        for score_name, score in [('constraint', constraint_score), ('robustness', robustness_score),
+                                   ('confidence', confidence_score), ('risk', risk_score),
+                                   ('preference', preference_score)]:
+            if np.isnan(score):
+                locals()[f"{score_name}_score"] = 50.0
+        
+        # Clamp scores to 0-100 range
+        constraint_score = max(0, min(100, constraint_score))
+        robustness_score = max(0, min(100, robustness_score))
+        confidence_score = max(0, min(100, confidence_score))
+        risk_score = max(0, min(100, risk_score))
+        preference_score = max(0, min(100, preference_score))
         
         # Weighted combination
         overall_score = (
@@ -82,10 +101,20 @@ class TrustEngine:
             self.weights['preference'] * preference_score
         )
         
+        # Handle NaN in overall score
+        if np.isnan(overall_score):
+            overall_score = 50.0
+        
         # Calculate confidence interval (95% CI)
         scores = [constraint_score, robustness_score, confidence_score, risk_score, preference_score]
-        ci_lower = max(0, overall_score - 1.96 * np.std(scores))
-        ci_upper = min(100, overall_score + 1.96 * np.std(scores))
+        valid_scores = [s for s in scores if not np.isnan(s)]
+        if valid_scores:
+            std_dev = np.std(valid_scores) if len(valid_scores) > 1 else 10.0
+        else:
+            std_dev = 10.0
+        
+        ci_lower = max(0, overall_score - 1.96 * std_dev)
+        ci_upper = min(100, overall_score + 1.96 * std_dev)
         
         # Generate rationale
         rationale = self._generate_rationale(
@@ -125,48 +154,128 @@ class TrustEngine:
             trust_breakdown=trust_breakdown
         )
     
+    def _safe_extract(self, report, method_name, default=0.5) -> float:
+        """Safely extract a value with None and NaN handling."""
+        if report is None:
+            return default
+        
+        try:
+            if method_name.startswith('_'):
+                # Call internal method
+                if hasattr(self, method_name):
+                    value = getattr(self, method_name)(report)
+                else:
+                    value = default
+            else:
+                # Direct attribute access
+                value = getattr(report, method_name, default)
+            
+            # Handle NaN
+            if value is None or (isinstance(value, float) and np.isnan(value)):
+                return default
+            
+            # Ensure float
+            return float(value)
+        except Exception:
+            return default
+    
     def _extract_constraint_score(self, report) -> float:
         """Extract score from constraint report (0-1 scale)."""
-        if not hasattr(report, 'overall_pass'):
+        if report is None:
             return 0.5
         
-        if not report.overall_pass:
+        # Check for overall_pass
+        overall_pass = getattr(report, 'overall_pass', None)
+        if overall_pass is None:
+            return 0.5
+        
+        if not overall_pass:
             return 0.3
         
         # Score based on margin percentages
-        if hasattr(report, 'constraints') and report.constraints:
-            margins = [min(100, c.margin_percentage) for c in report.constraints]
-            avg_margin = np.mean(margins)
-            # Base 0.7 + up to 0.3 based on margins
-            return min(1.0, 0.7 + avg_margin / 100)
+        constraints = getattr(report, 'constraints', [])
+        if constraints:
+            margins = []
+            for c in constraints:
+                if hasattr(c, 'margin_percentage') and c.margin_percentage is not None:
+                    if not np.isnan(c.margin_percentage):
+                        margins.append(min(100, c.margin_percentage))
+            
+            if margins:
+                avg_margin = np.mean(margins)
+                # Base 0.7 + up to 0.3 based on margins
+                return min(1.0, 0.7 + avg_margin / 100)
+        
+        # Check satisfaction rate
+        sat_rate = getattr(report, 'constraint_satisfaction_rate', None)
+        if sat_rate is not None and not np.isnan(sat_rate):
+            return sat_rate
         
         return 0.7
     
     def _extract_robustness_score(self, report) -> float:
         """Extract score from robustness report (0-1 scale)."""
-        if hasattr(report, 'overall_robustness_score'):
-            return report.overall_robustness_score
-        elif hasattr(report, 'method_robustness') and hasattr(report.method_robustness, 'robustness_score'):
-            return report.method_robustness.robustness_score
+        if report is None:
+            return 0.5
+        
+        # Try direct attribute
+        score = getattr(report, 'overall_robustness_score', None)
+        if score is not None and not np.isnan(score):
+            return score
+        
+        # Try nested attribute
+        if hasattr(report, 'method_robustness'):
+            mr = report.method_robustness
+            score = getattr(mr, 'robustness_score', None)
+            if score is not None and not np.isnan(score):
+                return score
+            score = getattr(mr, 'pass_probability', None)
+            if score is not None and not np.isnan(score):
+                return score
+        
         return 0.5
     
     def _extract_confidence_score(self, report) -> float:
         """Extract score from confidence report (0-1 scale)."""
-        if hasattr(report, 'overall_confidence_score'):
-            return report.overall_confidence_score
+        if report is None:
+            return 0.5
+        
+        score = getattr(report, 'overall_confidence_score', None)
+        if score is not None and not np.isnan(score):
+            return score
+        
         return 0.5
     
     def _extract_risk_score(self, report) -> float:
         """Extract risk score (0-1 scale, lower risk is better)."""
-        if hasattr(report, 'risk_metrics') and hasattr(report.risk_metrics, 'overall_risk_score'):
-            return report.risk_metrics.overall_risk_score
+        if report is None:
+            return 0.5
+        
+        # Try direct risk_metrics
+        if hasattr(report, 'risk_metrics'):
+            rm = report.risk_metrics
+            score = getattr(rm, 'overall_risk_score', None)
+            if score is not None and not np.isnan(score):
+                return score
+        
+        # Try direct attribute
+        score = getattr(report, 'overall_risk_score', None)
+        if score is not None and not np.isnan(score):
+            return score
+        
         return 0.5
     
     def _extract_preference_score(self, scores: List) -> float:
         """Extract preference score (0-1 scale)."""
-        if scores and len(scores) > 0:
-            if hasattr(scores[0], 'preference_probability'):
-                return scores[0].preference_probability
+        if not scores or len(scores) == 0:
+            return 0.5
+        
+        first = scores[0]
+        if hasattr(first, 'preference_probability'):
+            val = first.preference_probability
+            if val is not None and not np.isnan(val):
+                return val
+        
         return 0.5
     
     def _generate_rationale(
@@ -180,6 +289,14 @@ class TrustEngine:
         constraint_report
     ) -> str:
         """Generate human-readable rationale for trust score."""
+        # Handle NaN values
+        overall = 50.0 if np.isnan(overall) else overall
+        constraint = 50.0 if np.isnan(constraint) else constraint
+        robustness = 50.0 if np.isnan(robustness) else robustness
+        confidence = 50.0 if np.isnan(confidence) else confidence
+        risk = 50.0 if np.isnan(risk) else risk
+        preference = 50.0 if np.isnan(preference) else preference
+        
         rationale_parts = []
         
         # Overall assessment
@@ -193,51 +310,59 @@ class TrustEngine:
             rationale_parts.append("This method shows low trustworthiness and requires optimization.")
         
         # Constraint assessment with specific margins
-        if hasattr(constraint_report, 'worst_margin_percentage'):
-            margin = constraint_report.worst_margin_percentage
+        margin_info = self._get_margin_info(constraint_report)
+        if margin_info:
+            margin, text = margin_info
             if margin >= 20:
-                rationale_parts.append(f"All constraints satisfied with substantial margins (worst: {margin:.1f}%).")
+                rationale_parts.append(f"All constraints satisfied with substantial margins ({text}).")
             elif margin >= 10:
-                rationale_parts.append(f"All constraints satisfied with adequate margins (worst: {margin:.1f}%).")
+                rationale_parts.append(f"All constraints satisfied with adequate margins ({text}).")
             elif margin >= 0:
-                rationale_parts.append(f"Constraints satisfied but with narrow margins (worst: {margin:.1f}%).")
+                rationale_parts.append(f"Constraints satisfied but with narrow margins ({text}).")
             else:
                 rationale_parts.append("Critical constraints violated.")
+        else:
+            if constraint >= 70:
+                rationale_parts.append(f"Constraints satisfied ({constraint:.0f}%).")
+            elif constraint >= 50:
+                rationale_parts.append(f"Constraints marginally satisfied ({constraint:.0f}%).")
+            else:
+                rationale_parts.append(f"Constraint violations detected ({constraint:.0f}%).")
         
         # Robustness assessment
         if robustness >= 85:
-            rationale_parts.append(f"Exceptional robustness predicted ({robustness:.1f}%).")
+            rationale_parts.append(f"Exceptional robustness predicted ({robustness:.0f}%).")
         elif robustness >= 70:
-            rationale_parts.append(f"Good robustness predicted ({robustness:.1f}%).")
+            rationale_parts.append(f"Good robustness predicted ({robustness:.0f}%).")
         elif robustness >= 50:
-            rationale_parts.append(f"Adequate robustness predicted ({robustness:.1f}%).")
+            rationale_parts.append(f"Adequate robustness predicted ({robustness:.0f}%).")
         else:
-            rationale_parts.append(f"Robustness concerns identified ({robustness:.1f}%).")
+            rationale_parts.append(f"Robustness concerns identified ({robustness:.0f}%).")
         
         # Risk assessment
         risk_managed = risk
         if risk_managed >= 85:
-            rationale_parts.append(f"Very low risk profile (risk score: {100-risk_managed:.1f}%).")
+            rationale_parts.append(f"Very low risk profile ({100-risk_managed:.0f}% risk).")
         elif risk_managed >= 70:
-            rationale_parts.append(f"Low risk profile (risk score: {100-risk_managed:.1f}%).")
+            rationale_parts.append(f"Low risk profile ({100-risk_managed:.0f}% risk).")
         elif risk_managed >= 50:
-            rationale_parts.append(f"Moderate risk profile (risk score: {100-risk_managed:.1f}%).")
+            rationale_parts.append(f"Moderate risk profile ({100-risk_managed:.0f}% risk).")
         else:
-            rationale_parts.append(f"High risk profile (risk score: {100-risk_managed:.1f}%).")
+            rationale_parts.append(f"High risk profile ({100-risk_managed:.0f}% risk).")
         
         # Confidence
         if confidence >= 85:
-            rationale_parts.append(f"High confidence in predictions ({confidence:.1f}%).")
+            rationale_parts.append(f"High confidence in predictions ({confidence:.0f}%).")
         elif confidence >= 70:
-            rationale_parts.append(f"Good confidence in predictions ({confidence:.1f}%).")
+            rationale_parts.append(f"Good confidence in predictions ({confidence:.0f}%).")
         else:
-            rationale_parts.append(f"Limited confidence in predictions ({confidence:.1f}%).")
+            rationale_parts.append(f"Limited confidence in predictions ({confidence:.0f}%).")
         
         # Preference alignment
         if preference >= 75:
-            rationale_parts.append(f"Strong alignment with expert preferences ({preference:.1f}%).")
+            rationale_parts.append(f"Strong alignment with expert preferences ({preference:.0f}%).")
         elif preference >= 50:
-            rationale_parts.append(f"Moderate alignment with expert preferences ({preference:.1f}%).")
+            rationale_parts.append(f"Moderate alignment with expert preferences ({preference:.0f}%).")
         
         # Final synthesis
         if overall >= 65:
@@ -248,3 +373,27 @@ class TrustEngine:
             rationale_parts.append("Therefore, this method requires further optimization before implementation.")
         
         return " ".join(rationale_parts)
+    
+    def _get_margin_info(self, constraint_report) -> Optional[Tuple[float, str]]:
+        """Extract margin information from constraint report."""
+        if constraint_report is None:
+            return None
+        
+        # Try to get worst margin percentage
+        margin = getattr(constraint_report, 'worst_margin_percentage', None)
+        if margin is not None and not np.isnan(margin):
+            return (margin, f"worst: {margin:.1f}%")
+        
+        # Try to get margins from individual constraints
+        constraints = getattr(constraint_report, 'constraints', [])
+        if constraints:
+            margins = []
+            for c in constraints:
+                if hasattr(c, 'margin_percentage') and c.margin_percentage is not None:
+                    if not np.isnan(c.margin_percentage):
+                        margins.append(c.margin_percentage)
+            if margins:
+                worst = min(margins)
+                return (worst, f"worst: {worst:.1f}%")
+        
+        return None
